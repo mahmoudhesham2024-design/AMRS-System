@@ -15,7 +15,8 @@
         label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
-        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; }
+        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; transition: 0.2s; }
+        .btn-submit:hover { background: #059669; }
         .btn-track { background: #38bdf8; color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         
         .car-gallery { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; display: none; padding-bottom: 5px; }
@@ -122,19 +123,23 @@
             const carSelect = document.getElementById('custCar');
             carSelect.innerHTML = '<option value="">-- اختار السيارة --</option>';
             
-            const carsSnapshot = await db.collection("cars").get();
-            carsSnapshot.forEach(doc => {
-                let car = doc.data();
-                let imgsList = car.imgs ? JSON.stringify(car.imgs) : (car.img ? JSON.stringify([car.img]) : JSON.stringify([]));
+            try {
+                const carsSnapshot = await db.collection("cars").get();
+                carsSnapshot.forEach(doc => {
+                    let car = doc.data();
+                    let imgsList = car.imgs ? JSON.stringify(car.imgs) : (car.img ? JSON.stringify([car.img]) : JSON.stringify([]));
 
-                carSelect.innerHTML += `<option value="${car.name}" 
-                    data-imgs='${imgsList}' 
-                    data-pday="${car.pDay || 500}" 
-                    data-phalf="${car.pHalf || 7000}" 
-                    data-pmonth="${car.pMonth || 13000}">
-                    ${car.name} (يومي: ${car.pDay || 500} ج.م)
-                </option>`;
-            });
+                    carSelect.innerHTML += `<option value="${car.name}" 
+                        data-imgs='${imgsList}' 
+                        data-pday="${car.pDay || 500}" 
+                        data-phalf="${car.pHalf || 7000}" 
+                        data-pmonth="${car.pMonth || 13000}">
+                        ${car.name} (يومي: ${car.pDay || 500} ج.م)
+                    </option>`;
+                });
+            } catch (err) {
+                console.error("خطأ في تحميل السيارات:", err);
+            }
         }
 
         function convertImg(input, statusId) {
@@ -235,13 +240,13 @@
         }
 
         async function submitBooking() {
-            const name = document.getElementById('custName').value;
-            const phone = document.getElementById('custPhone').value;
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
             const car = document.getElementById('custCar').value;
             const startDate = document.getElementById('custStartDate').value;
             const endDate = document.getElementById('custEndDate').value;
 
-            // التحقق من الإجبارية
+            // التحقق من الحقول الأساسية
             if (!name || !phone || !car || !startDate || !endDate) {
                 return alert("برجاء ملء جميع البيانات الأساسية للحجز!");
             }
@@ -252,51 +257,58 @@
                 return alert("عذراً، يجب إرفاق صورة البطاقة الشخصية أو الباسبور بشكل إجباري!");
             }
 
-            await db.collection("pendingBookings").add({
-                name: name,
-                phone: phone,
-                car: car,
-                startDate: startDate.replace('T', ' '),
-                endDate: endDate.replace('T', ' '),
-                idImg: idBase64,
-                licenseImg: licenseBase64,
-                ticketImg: ticketBase64 || "",
-                status: "قيد المراجعة ⏳",
-                createdAt: new Date()
-            });
+            try {
+                await db.collection("pendingBookings").add({
+                    name: name,
+                    phone: phone,
+                    car: car,
+                    startDate: startDate.replace('T', ' '),
+                    endDate: endDate.replace('T', ' '),
+                    idImg: idBase64,
+                    licenseImg: licenseBase64,
+                    ticketImg: ticketBase64 || "",
+                    status: "قيد المراجعة ⏳",
+                    createdAt: new Date()
+                });
 
-            // رسالة التأكيد للعميل
-            alert('✅ تم إرسال طلب الحجز بنجاح!\n\nشكراً لك، سيتم التواصل معك قريباً جداً عبر الهاتف لتأكيد تفاصيل الحجز.');
-            location.reload();
+                alert('✅ تم إرسال طلب الحجز بنجاح!\n\nشكراً لك، سيتم التواصل معك قريباً جداً عبر الهاتف لتأكيد تفاصيل الحجز.');
+                location.reload();
+            } catch (error) {
+                alert('حدث خطأ أثناء إرسال الحجز: ' + error.message);
+            }
         }
 
         async function trackBooking() {
-            let phone = document.getElementById('trackPhone').value;
+            let phone = document.getElementById('trackPhone').value.trim();
             let container = document.getElementById('trackResultContainer');
             container.innerHTML = 'جاري البحث...';
 
             if(!phone) return alert('اكتب رقم الموبايل للاستعلام!');
 
-            let snapshot = await db.collection("pendingBookings").where("phone", "==", phone).get();
-            let contractsSnapshot = await db.collection("contracts").where("clientPhone", "==", phone).get();
-            
-            container.innerHTML = '';
-            let found = false;
+            try {
+                let snapshot = await db.collection("pendingBookings").where("phone", "==", phone).get();
+                let contractsSnapshot = await db.collection("contracts").where("clientPhone", "==", phone).get();
+                
+                container.innerHTML = '';
+                let found = false;
 
-            snapshot.forEach(doc => {
-                let b = doc.data();
-                found = true;
-                container.innerHTML += `<div class="track-result">🚗 حجز سيارة (${b.car})<br>📅 الحالة: <b style="color:#f59e0b;">قيد المراجعة لدى الإدارة ⏳</b></div>`;
-            });
+                snapshot.forEach(doc => {
+                    let b = doc.data();
+                    found = true;
+                    container.innerHTML += `<div class="track-result">🚗 حجز سيارة (${b.car})<br>📅 الحالة: <b style="color:#f59e0b;">قيد المراجعة لدى الإدارة ⏳</b></div>`;
+                });
 
-            contractsSnapshot.forEach(doc => {
-                let c = doc.data();
-                found = true;
-                container.innerHTML += `<div class="track-result">🚗 عقد نشط (${c.carName})<br>📅 الحالة: <b style="color:#10b981;">تم القبول والتأكيد بنجاح ✓</b></div>`;
-            });
+                contractsSnapshot.forEach(doc => {
+                    let c = doc.data();
+                    found = true;
+                    container.innerHTML += `<div class="track-result">🚗 عقد نشط (${c.carName})<br>📅 الحالة: <b style="color:#10b981;">تم القبول والتأكيد بنجاح ✓</b></div>`;
+                });
 
-            if(!found) {
-                container.innerHTML = '<div class="track-result" style="color:#ef4444;">لا توجد طلبات حجز أو عقود نشطة مسجلة بهذا الرقم.</div>';
+                if(!found) {
+                    container.innerHTML = '<div class="track-result" style="color:#ef4444;">لا توجد طلبات حجز أو عقود نشطة مسجلة بهذا الرقم.</div>';
+                }
+            } catch (err) {
+                container.innerHTML = '<div class="track-result" style="color:#ef4444;">حدث خطأ أثناء الاستعلام.</div>';
             }
         }
 
