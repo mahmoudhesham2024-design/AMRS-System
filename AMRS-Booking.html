@@ -1,9 +1,9 @@
-     <!DOCTYPE html>
+   <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - حجز سيارة متطور</title>
+    <title>AMRS - حجز سيارة ذكي</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -15,10 +15,8 @@
         label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
-        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; transition: 0.2s; }
-        .btn-submit:hover { background: #059669; }
+        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; }
         .btn-track { background: #38bdf8; color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
-        .car-status-msg { font-size: 12px; color: #eab308; margin-top: 5px; display: block; }
         .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
         .specs-box { background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; color: #38bdf8; display: none; }
         .price-tag { background: #334155; padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-size: 16px; font-weight: bold; color: #10b981; }
@@ -29,10 +27,9 @@
     <div class="container">
         <div class="header">
             <h1>🚗 AMRS Car Rental</h1>
-            <p>بوابتك الأولى لتأجير السيارات الفاخرة</p>
+            <p>أفضل أسعار وتأجير سيارات فوري</p>
         </div>
 
-        <!-- بطاقة الحجز الرئيسية -->
         <div class="booking-card">
             <h2>📝 حجز سيارة جديدة</h2>
             
@@ -44,11 +41,10 @@
 
             <label>اختر السيارة المطلوبة:</label>
             <select id="custCar" onchange="onCarSelect()">
-                <option value="">-- جاري تحميل الأسطول... --</option>
+                <option value="">-- جاري تحميل الأسطول والأسعار... --</option>
             </select>
             <img id="carPreviewImg" class="preview-img">
             <div id="carSpecs" class="specs-box"></div>
-            <span id="carStatusMsg" class="car-status-msg"></span>
 
             <label>تاريخ ووقت الاستلام:</label>
             <input type="datetime-local" id="custStartDate" onchange="calculateTotal()">
@@ -75,7 +71,6 @@
             <button class="btn-submit" onclick="submitBooking()">إرسال طلب الحجز للشركة 🚀</button>
         </div>
 
-        <!-- بطاقة تتبع حالة الحجز للعميل -->
         <div class="booking-card" style="border-top-color: #f59e0b;">
             <h2>🔍 تتبع حالة حجزك السابق</h2>
             <label>ادخل رقم الموبايل المسجل به:</label>
@@ -97,7 +92,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        let carsData = [];
         let idBase64 = "";
         let ticketBase64 = "";
 
@@ -108,8 +102,13 @@
             const carsSnapshot = await db.collection("cars").get();
             carsSnapshot.forEach(doc => {
                 let car = doc.data();
-                carsData.push(car);
-                carSelect.innerHTML += `<option value="${car.name}" data-img="${car.img || ''}" data-price="${car.price || 500}" data-specs="${car.specs || 'تكييف، أوتوماتيك، مقاعد مريحة'}">${car.name}</option>`;
+                carSelect.innerHTML += `<option value="${car.name}" 
+                    data-img="${car.img || ''}" 
+                    data-pday="${car.pDay || 500}" 
+                    data-phalf="${car.pHalf || 7000}" 
+                    data-pmonth="${car.pMonth || 13000}">
+                    ${car.name} (اليوم: ${car.pDay || 500} ج.م)
+                </option>`;
             });
         }
 
@@ -120,7 +119,6 @@
                     if(statusId === 'idStatus') idBase64 = e.target.result;
                     if(statusId === 'ticketStatus') ticketBase64 = e.target.result;
                     document.getElementById(statusId).innerText = "✅ تم رفعه بنجاح";
-                    document.getElementById(statusId).style.color = "#10b981";
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -130,7 +128,6 @@
             let select = document.getElementById('custCar');
             let selectedOption = select.options[select.selectedIndex];
             let imgUrl = selectedOption.getAttribute('data-img');
-            let specs = selectedOption.getAttribute('data-specs');
             let imgBox = document.getElementById('carPreviewImg');
             let specsBox = document.getElementById('carSpecs');
 
@@ -139,18 +136,21 @@
 
             if (select.value) {
                 specsBox.style.display = 'block';
-                specsBox.innerHTML = `⚙️ <b>المواصفات:</b> ${specs}`;
+                specsBox.innerHTML = `💰 <b>الأسعار:</b> يومي: ${selectedOption.getAttribute('data-pday')} ج.م | نصف شهر: ${selectedOption.getAttribute('data-phalf')} ج.م | شهر: ${selectedOption.getAttribute('data-pmonth')} ج.م`;
             } else {
                 specsBox.style.display = 'none';
             }
             calculateTotal();
         }
 
-        // حساب تكلفة الإيجار أوتوماتيك
+        // حساب الأسعار المتدرجة (أيام، نصف شهر، شهر كامل)
         function calculateTotal() {
             let select = document.getElementById('custCar');
             let selectedOption = select.options[select.selectedIndex];
-            let pricePerDay = Number(selectedOption.getAttribute('data-price')) || 500;
+            
+            let pDay = Number(selectedOption.getAttribute('data-pday')) || 500;
+            let pHalf = Number(selectedOption.getAttribute('data-phalf')) || (pDay * 14);
+            let pMonth = Number(selectedOption.getAttribute('data-pmonth')) || (pDay * 26);
             
             let start = document.getElementById('custStartDate').value;
             let end = document.getElementById('custEndDate').value;
@@ -163,7 +163,28 @@
                 let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 if(diffDays > 0) {
-                    let total = diffDays * pricePerDay;
+                    let total = 0;
+                    
+                    // لو المدة شهر أو أكتر (30 يوم فأكثر)
+                    let months = Math.floor(diffDays / 30);
+                    let remainingDays = diffDays % 30;
+
+                    if(months > 0) {
+                        total += months * pMonth;
+                    }
+
+                    // لو باقي أيام وصلت لنصف شهر (من 15 لـ 29 يوم)
+                    if(remainingDays >= 15) {
+                        total += pHalf + ((remainingDays - 15) * pDay);
+                    } else {
+                        total += remainingDays * pDay;
+                    }
+
+                    // لو الحجز أقل من 15 يوم خالص بيتحسب أيام عادية
+                    if(diffDays < 15 && diffDays > 0) {
+                        total = diffDays * pDay;
+                    }
+
                     document.getElementById('totalAmount').innerText = total;
                     priceBox.style.display = 'block';
                 } else {
@@ -199,7 +220,6 @@
             location.reload();
         }
 
-        // تتبع الحجز برقم الموبايل
         async function trackBooking() {
             let phone = document.getElementById('trackPhone').value;
             let container = document.getElementById('trackResultContainer');
