@@ -60,7 +60,7 @@
             <select id="manualCarSelect">
                 <option value="">-- اختر السيارة المتاحة --</option>
             </select>
-            <label style="font-size:12px; color:#cbd5e1;">تاريخ ونهاية العقد:</label>
+            <label style="font-size:12px; color:#cbd5e1;">تاريخ نهاية العقد:</label>
             <input type="date" id="manualEndDate">
             <input type="number" id="manualAmount" placeholder="قيمة الإيجار المتفق عليها (جنيه)">
             <button class="btn" style="background:#38bdf8; color:#0f172a;" onclick="addManualBooking()">إضافة العقد والحجز المانيوال ✍️</button>
@@ -92,6 +92,18 @@
             <div id="contractsList">جاري التحميل...</div>
         </div>
 
+        <!-- قسم المخالفات والغرامات -->
+        <div class="card" style="border-color: #f59e0b;">
+            <h2>⚠️ تسجيل مخالفة أو غرامة على عميل</h2>
+            <input type="text" id="violationCar" placeholder="اسم ورقم السيارة المخالفة">
+            <input type="text" id="violationClient" placeholder="اسم العميل المخالف">
+            <input type="text" id="violationDesc" placeholder="تفاصيل المخالفة (سرعة، رادار...)">
+            <input type="number" id="violationCost" placeholder="قيمة الغرامة (جنيه)">
+            <button class="btn" style="background:#f59e0b; color:#0f172a;" onclick="addViolation()">إثبات المخالفة 🚨</button>
+            <div id="violationsList" style="margin-top: 15px;">جاري التحميل...</div>
+        </div>
+
+        <!-- أرشيف المصروفات -->
         <div class="card" style="border-color: #f97316;">
             <h2>🛠️ أرشيف المصروفات (تعديل أو حذف)</h2>
             <select id="expenseCarSelect">
@@ -103,6 +115,7 @@
             <div id="expensesList" style="margin-top:10px;">جاري التحميل...</div>
         </div>
 
+        <!-- التقرير المالي الشامل -->
         <div class="card" style="border-color: #ec4899;">
             <h2>📊 التقرير المالي الشامل وأرباح السيارات</h2>
             <div id="carFinancialReports">جاري حساب أرباح السيارات...</div>
@@ -194,10 +207,10 @@
             calculateFinancialReports();
         });
 
-        // دالة إضافة حجز مانيوال (يدوي)
+        // دالة إضافة حجز مانيوال (يدوي) سليمة 100%
         async function addManualBooking() {
-            let name = document.getElementById('manualName').value;
-            let phone = document.getElementById('manualPhone').value;
+            let name = document.getElementById('manualName').value.trim();
+            let phone = document.getElementById('manualPhone').value.trim();
             let car = document.getElementById('manualCarSelect').value;
             let endDate = document.getElementById('manualEndDate').value;
             let amount = Number(document.getElementById('manualAmount').value);
@@ -206,31 +219,37 @@
                 return alert('برجاء استكمال جميع بيانات الحجز اليدوي!');
             }
 
-            // إضافة العقد مباشرة للعقود النشطة
-            await db.collection("contracts").add({ 
-                clientName: name, 
-                clientPhone: phone, 
-                carName: car, 
-                endDate: endDate, 
-                amount: amount, 
-                rating: "3", 
-                status: 'نشط' 
-            });
+            try {
+                // 1. إضافة العقد النشط
+                await db.collection("contracts").add({ 
+                    clientName: name, 
+                    clientPhone: phone, 
+                    carName: car, 
+                    endDate: endDate, 
+                    amount: amount, 
+                    rating: "3", 
+                    status: 'نشط' 
+                });
 
-            // تسجيل الدخل أوتوماتيك باسم السيارة
-            await db.collection("income").add({ 
-                carName: car, 
-                amount: amount, 
-                client: name, 
-                date: new Date().toLocaleDateString('ar-EG') 
-            });
+                // 2. تسجيل الدخل أوتوماتيك
+                await db.collection("income").add({ 
+                    carName: car, 
+                    amount: amount, 
+                    client: name, 
+                    date: new Date().toLocaleDateString('ar-EG') 
+                });
 
-            alert('✅ تمت إضافة الحجز اليدوي وتفعيل العقد وتسجيل الأرباح بنجاح!');
-            document.getElementById('manualName').value = '';
-            document.getElementById('manualPhone').value = '';
-            document.getElementById('manualCarSelect').value = '';
-            document.getElementById('manualEndDate').value = '';
-            document.getElementById('manualAmount').value = '';
+                alert('✅ تمت إضافة الحجز اليدوي وتفعيل العقد وتسجيل الأرباح بنجاح!');
+                
+                // تفريغ الحقول
+                document.getElementById('manualName').value = '';
+                document.getElementById('manualPhone').value = '';
+                document.getElementById('manualCarSelect').value = '';
+                document.getElementById('manualEndDate').value = '';
+                document.getElementById('manualAmount').value = '';
+            } catch (error) {
+                alert('حدث خطأ أثناء حفظ الحجز: ' + error.message);
+            }
         }
 
         db.collection("pendingBookings").onSnapshot((snapshot) => {
@@ -310,6 +329,44 @@
             }
         }
 
+        // دالة تسجيل المخالفات
+        async function addViolation() {
+            let car = document.getElementById('violationCar').value.trim();
+            let client = document.getElementById('violationClient').value.trim();
+            let desc = document.getElementById('violationDesc').value.trim();
+            let cost = Number(document.getElementById('violationCost').value);
+
+            if(!car || !desc || !cost) return alert('برجاء استكمال بيانات المخالفة!');
+            
+            await db.collection("violations").add({ 
+                car: car, 
+                client: client || "غير محدد", 
+                desc: desc, 
+                cost: cost, 
+                date: new Date().toLocaleDateString('ar-EG') 
+            });
+
+            alert('تم تسجيل المخالفة بنجاح.');
+            document.getElementById('violationCar').value = '';
+            document.getElementById('violationClient').value = '';
+            document.getElementById('violationDesc').value = '';
+            document.getElementById('violationCost').value = '';
+        }
+
+        db.collection("violations").onSnapshot((snapshot) => {
+            const list = document.getElementById('violationsList');
+            if(!list) return;
+            list.innerHTML = '';
+            snapshot.forEach(doc => {
+                let v = doc.data();
+                list.innerHTML += `<div class="item-box" style="background:#262626;">
+                    <span>⚠️ <b>${v.car}</b> (العميل: ${v.client})<br><small style="color:#94a3b8;">${v.desc}</small></span> 
+                    <span class="badge" style="background:#ef4444;">-${v.cost} ج.م</span>
+                </div>`;
+            });
+            if(list.innerHTML === '') list.innerHTML = '<span style="font-size:12px; color:#94a3b8;">لا توجد مخالفات مسجلة.</span>';
+        });
+
         async function addExpense() {
             let carName = document.getElementById('expenseCarSelect').value;
             let desc = document.getElementById('expDesc').value;
@@ -317,10 +374,7 @@
             if(!desc || !amount) return alert('أدخل بيان المصروف والمبلغ!');
 
             await db.collection("expenses").add({ 
-                carName: carName, 
-                desc: desc, 
-                amount: amount, 
-                date: new Date().toLocaleDateString('ar-EG') 
+                carName: carName, desc: desc, amount: amount, date: new Date().toLocaleDateString('ar-EG') 
             });
 
             document.getElementById('expDesc').value = '';
@@ -472,35 +526,6 @@
         async function deleteCar(id) {
             if(confirm('متأكد من الحذف؟')) await db.collection("cars").doc(id).delete();
         }
-
-        async function addViolation() {
-            let car = document.getElementById('violationCar').value;
-            let client = document.getElementById('violationClient').value;
-            let desc = document.getElementById('violationDesc').value;
-            let cost = Number(document.getElementById('violationCost').value);
-
-            if(!car || !desc || !cost) return alert('برجاء استكمال بيانات المخالفة!');
-            await db.collection("violations").add({ car, client: client || "غير محدد", desc, cost, date: new Date().toLocaleDateString('ar-EG') });
-            alert('تم تسجيل المخالفة بنجاح.');
-            document.getElementById('violationCar').value = '';
-            document.getElementById('violationClient').value = '';
-            document.getElementById('violationDesc').value = '';
-            document.getElementById('violationCost').value = '';
-        }
-
-        db.collection("violations").onSnapshot((snapshot) => {
-            const list = document.getElementById('violationsList');
-            if(!list) return;
-            list.innerHTML = '';
-            snapshot.forEach(doc => {
-                let v = doc.data();
-                list.innerHTML += `<div class="item-box" style="background:#262626;">
-                    <span>⚠️ <b>${v.car}</b> (العميل: ${v.client})<br><small style="color:#94a3b8;">${v.desc}</small></span> 
-                    <span class="badge" style="background:#ef4444;">-${v.cost} ج.م</span>
-                </div>`;
-            });
-            if(list.innerHTML === '') list.innerHTML = '<span style="font-size:12px; color:#94a3b8;">لا توجد مخالفات مسجلة.</span>';
-        });
     </script>
 </body>
 </html>
