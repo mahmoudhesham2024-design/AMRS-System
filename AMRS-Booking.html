@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+ <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
@@ -17,13 +17,30 @@
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
         .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; }
         .btn-track { background: #38bdf8; color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
-        .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
+        
+        /* عرض الصور المصغرة ومعارض الصور للسيارات */
+        .car-gallery { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; display: none; padding-bottom: 5px; }
+        .gallery-img { width: 90px; height: 60px; object-fit: cover; border-radius: 6px; border: 2px solid #334155; cursor: pointer; transition: 0.2s; }
+        .gallery-img:hover { border-color: #38bdf8; transform: scale(1.05); }
+
+        /* نافذة تكبير الصورة (Lightbox Modal) */
+        #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999; }
+        #modalImg { max-width: 90%; max-height: 85vh; border-radius: 8px; border: 2px solid #38bdf8; }
+        .close-modal { position: absolute; top: 20px; left: 25px; background: #ef4444; color: white; border: none; padding: 8px 15px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
         .specs-box { background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; color: #38bdf8; display: none; }
         .price-tag { background: #334155; padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-size: 16px; font-weight: bold; color: #10b981; }
         .track-result { background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 13px; }
     </style>
 </head>
 <body>
+
+    <!-- نافذة تكبير الصورة الكبيرة -->
+    <div id="modalOverlay" onclick="closeImageModal()">
+        <button class="close-modal" onclick="closeImageModal()">إغلاق ✕</button>
+        <img id="modalImg">
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>🚗 AMRS Car Rental</h1>
@@ -43,7 +60,9 @@
             <select id="custCar" onchange="onCarSelect()">
                 <option value="">-- جاري تحميل الأسطول والأسعار... --</option>
             </select>
-            <img id="carPreviewImg" class="preview-img">
+            
+            <!-- معرض صور السيارة القابل للتكبير -->
+            <div id="carGallery" class="car-gallery"></div>
             <div id="carSpecs" class="specs-box"></div>
 
             <label>تاريخ ووقت الاستلام:</label>
@@ -102,12 +121,15 @@
             const carsSnapshot = await db.collection("cars").get();
             carsSnapshot.forEach(doc => {
                 let car = doc.data();
+                // تجهيز بيانات الصور لتمريرها للقائمة
+                let imgsList = car.imgs ? JSON.stringify(car.imgs) : (car.img ? JSON.stringify([car.img]) : JSON.stringify([]));
+
                 carSelect.innerHTML += `<option value="${car.name}" 
-                    data-img="${car.img || ''}" 
+                    data-imgs='${imgsList}' 
                     data-pday="${car.pDay || 500}" 
                     data-phalf="${car.pHalf || 7000}" 
                     data-pmonth="${car.pMonth || 13000}">
-                    ${car.name} (اليوم: ${car.pDay || 500} ج.م)
+                    ${car.name} (يومي: ${car.pDay || 500} ج.م)
                 </option>`;
             });
         }
@@ -127,23 +149,46 @@
         function onCarSelect() {
             let select = document.getElementById('custCar');
             let selectedOption = select.options[select.selectedIndex];
-            let imgUrl = selectedOption.getAttribute('data-img');
-            let imgBox = document.getElementById('carPreviewImg');
+            let galleryBox = document.getElementById('carGallery');
             let specsBox = document.getElementById('carSpecs');
 
-            if (imgUrl) { imgBox.src = imgUrl; imgBox.style.display = 'block'; }
-            else { imgBox.style.display = 'none'; }
-
+            galleryBox.innerHTML = '';
+            
             if (select.value) {
+                try {
+                    let imgs = JSON.parse(selectedOption.getAttribute('data-imgs') || '[]');
+                    if(imgs.length > 0) {
+                        galleryBox.style.display = 'flex';
+                        imgs.forEach(imgUrl => {
+                            galleryBox.innerHTML += `<img src="${imgUrl}" class="gallery-img" onclick="openImageModal('${imgUrl}')">`;
+                        });
+                    } else {
+                        galleryBox.style.display = 'none';
+                    }
+                } catch(e) {
+                    galleryBox.style.display = 'none';
+                }
+
                 specsBox.style.display = 'block';
-                specsBox.innerHTML = `💰 <b>الأسعار:</b> يومي: ${selectedOption.getAttribute('data-pday')} ج.م | نصف شهر: ${selectedOption.getAttribute('data-phalf')} ج.م | شهر: ${selectedOption.getAttribute('data-pmonth')} ج.م`;
+                specsBox.innerHTML = `💰 <b>الأسعار:</b> يومي: ${selectedOption.getAttribute('data-pday')} ج.م | نصف شهر: ${selectedOption.getAttribute('data-phalf')} ج.م | شهر: ${selectedOption.getAttribute('data-pmonth')} ج.م <br><small style="color:#94a3b8;">💡 اضغط على أي صورة لتكبيرها ومشاهدتها بوضوح</small>`;
             } else {
+                galleryBox.style.display = 'none';
                 specsBox.style.display = 'none';
             }
             calculateTotal();
         }
 
-        // حساب الأسعار المتدرجة (أيام، نصف شهر، شهر كامل)
+        // فتح نافذة تكبير الصورة
+        function openImageModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('modalOverlay').style.display = 'flex';
+        }
+
+        // غلق نافذة تكبير الصورة
+        function closeImageModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
         function calculateTotal() {
             let select = document.getElementById('custCar');
             let selectedOption = select.options[select.selectedIndex];
@@ -164,26 +209,16 @@
 
                 if(diffDays > 0) {
                     let total = 0;
-                    
-                    // لو المدة شهر أو أكتر (30 يوم فأكثر)
                     let months = Math.floor(diffDays / 30);
                     let remainingDays = diffDays % 30;
 
-                    if(months > 0) {
-                        total += months * pMonth;
-                    }
-
-                    // لو باقي أيام وصلت لنصف شهر (من 15 لـ 29 يوم)
+                    if(months > 0) total += months * pMonth;
                     if(remainingDays >= 15) {
                         total += pHalf + ((remainingDays - 15) * pDay);
                     } else {
                         total += remainingDays * pDay;
                     }
-
-                    // لو الحجز أقل من 15 يوم خالص بيتحسب أيام عادية
-                    if(diffDays < 15 && diffDays > 0) {
-                        total = diffDays * pDay;
-                    }
+                    if(diffDays < 15 && diffDays > 0) total = diffDays * pDay;
 
                     document.getElementById('totalAmount').innerText = total;
                     priceBox.style.display = 'block';
