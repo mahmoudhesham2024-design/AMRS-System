@@ -19,7 +19,7 @@
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; }
         .badge { background: #0ea5e9; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
         .alert-box { background: #7f1d1d; border: 1px solid #ef4444; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; color: #fca5a5; }
-        .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; }
+        .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; margin: 2px; }
         .accept-btn { background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .reject-btn { background: #ef4444; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .edit-btn { background: #f59e0b; color: #0f172a; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -207,49 +207,11 @@
             calculateFinancialReports();
         });
 
-        // دالة إضافة حجز مانيوال (يدوي) سليمة 100%
-        async function addManualBooking() {
-            let name = document.getElementById('manualName').value.trim();
-            let phone = document.getElementById('manualPhone').value.trim();
-            let car = document.getElementById('manualCarSelect').value;
-            let endDate = document.getElementById('manualEndDate').value;
-            let amount = Number(document.getElementById('manualAmount').value);
-
-            if(!name || !phone || !car || !endDate || !amount) {
-                return alert('برجاء استكمال جميع بيانات الحجز اليدوي!');
-            }
-
-            try {
-                // 1. إضافة العقد النشط
-                await db.collection("contracts").add({ 
-                    clientName: name, 
-                    clientPhone: phone, 
-                    carName: car, 
-                    endDate: endDate, 
-                    amount: amount, 
-                    rating: "3", 
-                    status: 'نشط' 
-                });
-
-                // 2. تسجيل الدخل أوتوماتيك
-                await db.collection("income").add({ 
-                    carName: car, 
-                    amount: amount, 
-                    client: name, 
-                    date: new Date().toLocaleDateString('ar-EG') 
-                });
-
-                alert('✅ تمت إضافة الحجز اليدوي وتفعيل العقد وتسجيل الأرباح بنجاح!');
-                
-                // تفريغ الحقول
-                document.getElementById('manualName').value = '';
-                document.getElementById('manualPhone').value = '';
-                document.getElementById('manualCarSelect').value = '';
-                document.getElementById('manualEndDate').value = '';
-                document.getElementById('manualAmount').value = '';
-            } catch (error) {
-                alert('حدث خطأ أثناء حفظ الحجز: ' + error.message);
-            }
+        // فتح الصور بتبويب مستقل آمن لمنع الكراش
+        function openImageInNewTab(url) {
+            if(!url) return alert('لا توجد صورة مرفقة!');
+            let win = window.open();
+            win.document.write(`<iframe src="${url}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
         }
 
         db.collection("pendingBookings").onSnapshot((snapshot) => {
@@ -257,9 +219,10 @@
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let b = doc.data();
-                let licenseBtn = b.licenseImg ? `<a href="${b.licenseImg}" target="_blank" class="doc-btn">📄 الرخصة</a>` : ``;
-                let idBtn = b.idImg ? `<a href="${b.idImg}" target="_blank" class="doc-btn" style="background:#0284c7;">🆔 البطاقة</a>` : ``;
-                let ticketBtn = b.ticketImg ? `<a href="${b.ticketImg}" target="_blank" class="doc-btn" style="background:#10b981;">✈️ التذكرة</a>` : ``;
+                // فتح المستندات والرواتب بتبويب جديد لتجنب الكراش
+                let licenseBtn = b.licenseImg ? `<button onclick="openImageInNewTab('${b.licenseImg}')" class="doc-btn">📄 الرخصة</button>` : ``;
+                let idBtn = b.idImg ? `<button onclick="openImageInNewTab('${b.idImg}')" class="doc-btn" style="background:#0284c7;">🆔 البطاقة</button>` : ``;
+                let ticketBtn = b.ticketImg ? `<button onclick="openImageInNewTab('${b.ticketImg}')" class="doc-btn" style="background:#10b981;">✈️ التذكرة</button>` : ``;
                 
                 list.innerHTML += `<div class="item-box">
                     <div>
@@ -276,6 +239,36 @@
             });
             if(list.innerHTML === '') list.innerHTML = 'لا توجد طلبات حجز جديدة.';
         });
+
+        async function addManualBooking() {
+            let name = document.getElementById('manualName').value.trim();
+            let phone = document.getElementById('manualPhone').value.trim();
+            let car = document.getElementById('manualCarSelect').value;
+            let endDate = document.getElementById('manualEndDate').value;
+            let amount = Number(document.getElementById('manualAmount').value);
+
+            if(!name || !phone || !car || !endDate || !amount) {
+                return alert('برجاء استكمال جميع بيانات الحجز اليدوي!');
+            }
+
+            try {
+                await db.collection("contracts").add({ 
+                    clientName: name, clientPhone: phone, carName: car, endDate: endDate, amount: amount, rating: "3", status: 'نشط' 
+                });
+                await db.collection("income").add({ 
+                    carName: car, amount: amount, client: name, date: new Date().toLocaleDateString('ar-EG') 
+                });
+
+                alert('✅ تمت إضافة الحجز اليدوي وتفعيل العقد وتسجيل الأرباح بنجاح!');
+                document.getElementById('manualName').value = '';
+                document.getElementById('manualPhone').value = '';
+                document.getElementById('manualCarSelect').value = '';
+                document.getElementById('manualEndDate').value = '';
+                document.getElementById('manualAmount').value = '';
+            } catch (error) {
+                alert('حدث خطأ أثناء حفظ الحجز: ' + error.message);
+            }
+        }
 
         async function acceptBooking(id, name, phone, car, endDate) {
             let price = prompt(`ادخل قيمة الإيجار المدفوعة للسيارة (${car}):`);
@@ -329,7 +322,6 @@
             }
         }
 
-        // دالة تسجيل المخالفات
         async function addViolation() {
             let car = document.getElementById('violationCar').value.trim();
             let client = document.getElementById('violationClient').value.trim();
@@ -338,14 +330,7 @@
 
             if(!car || !desc || !cost) return alert('برجاء استكمال بيانات المخالفة!');
             
-            await db.collection("violations").add({ 
-                car: car, 
-                client: client || "غير محدد", 
-                desc: desc, 
-                cost: cost, 
-                date: new Date().toLocaleDateString('ar-EG') 
-            });
-
+            await db.collection("violations").add({ car: car, client: client || "غير محدد", desc: desc, cost: cost, date: new Date().toLocaleDateString('ar-EG') });
             alert('تم تسجيل المخالفة بنجاح.');
             document.getElementById('violationCar').value = '';
             document.getElementById('violationClient').value = '';
@@ -373,10 +358,7 @@
             let amount = Number(document.getElementById('expAmount').value);
             if(!desc || !amount) return alert('أدخل بيان المصروف والمبلغ!');
 
-            await db.collection("expenses").add({ 
-                carName: carName, desc: desc, amount: amount, date: new Date().toLocaleDateString('ar-EG') 
-            });
-
+            await db.collection("expenses").add({ carName: carName, desc: desc, amount: amount, date: new Date().toLocaleDateString('ar-EG') });
             document.getElementById('expDesc').value = '';
             document.getElementById('expAmount').value = '';
             alert('تم تسجيل المصروف بنجاح.');
@@ -395,10 +377,7 @@
             let newAmount = prompt("تعديل مبلغ المصروف (جنيه):", oldAmount);
             if(newAmount === null || isNaN(newAmount)) return;
 
-            await db.collection("expenses").doc(id).update({
-                desc: newDesc,
-                amount: Number(newAmount)
-            });
+            await db.collection("expenses").doc(id).update({ desc: newDesc, amount: Number(newAmount) });
             alert('تم تحديث المصروف بنجاح!');
         }
 
@@ -425,9 +404,7 @@
 
         db.collection("income").onSnapshot((snapshot) => {
             globalIncomeList = [];
-            snapshot.forEach(doc => {
-                globalIncomeList.push(doc.data());
-            });
+            snapshot.forEach(doc => { globalIncomeList.push(doc.data()); });
             calculateFinancialReports();
         });
 
@@ -444,7 +421,6 @@
 
             globalCarsList.forEach(car => {
                 let carName = car.name;
-                
                 let carInc = globalIncomeList.filter(i => i.carName === carName).reduce((sum, i) => sum + Number(i.amount), 0);
                 totalIncAll += carInc;
 
@@ -491,11 +467,7 @@
             let newMonth = prompt("سعر الشهر الكامل الجديد:", oldMonth);
             if(newMonth === null) return;
 
-            await db.collection("cars").doc(id).update({
-                pDay: Number(newDay),
-                pHalf: Number(newHalf),
-                pMonth: Number(newMonth)
-            });
+            await db.collection("cars").doc(id).update({ pDay: Number(newDay), pHalf: Number(newHalf), pMonth: Number(newMonth) });
             alert('تم تحديث أسعار السيارة بنجاح!');
         }
 
@@ -508,9 +480,7 @@
 
             if(!name) return alert('اكتب اسم العربية!');
             
-            await db.collection("cars").add({ 
-                name: name, km: Number(km), pDay: pDay, pHalf: pHalf, pMonth: pMonth, imgs: carImagesArray, createdAt: new Date() 
-            });
+            await db.collection("cars").add({ name: name, km: Number(km), pDay: pDay, pHalf: pHalf, pMonth: pMonth, imgs: carImagesArray, createdAt: new Date() });
 
             document.getElementById('newCarName').value = '';
             document.getElementById('carKm').value = '';
