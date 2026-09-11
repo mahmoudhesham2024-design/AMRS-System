@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
@@ -18,12 +18,10 @@
         .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; }
         .btn-track { background: #38bdf8; color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         
-        /* عرض الصور المصغرة ومعارض الصور للسيارات */
         .car-gallery { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; display: none; padding-bottom: 5px; }
         .gallery-img { width: 90px; height: 60px; object-fit: cover; border-radius: 6px; border: 2px solid #334155; cursor: pointer; transition: 0.2s; }
         .gallery-img:hover { border-color: #38bdf8; transform: scale(1.05); }
 
-        /* نافذة تكبير الصورة (Lightbox Modal) */
         #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999; }
         #modalImg { max-width: 90%; max-height: 85vh; border-radius: 8px; border: 2px solid #38bdf8; }
         .close-modal { position: absolute; top: 20px; left: 25px; background: #ef4444; color: white; border: none; padding: 8px 15px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -31,11 +29,11 @@
         .specs-box { background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; color: #38bdf8; display: none; }
         .price-tag { background: #334155; padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-size: 16px; font-weight: bold; color: #10b981; }
         .track-result { background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 13px; }
+        .req-star { color: #ef4444; }
     </style>
 </head>
 <body>
 
-    <!-- نافذة تكبير الصورة الكبيرة -->
     <div id="modalOverlay" onclick="closeImageModal()">
         <button class="close-modal" onclick="closeImageModal()">إغلاق ✕</button>
         <img id="modalImg">
@@ -61,7 +59,6 @@
                 <option value="">-- جاري تحميل الأسطول والأسعار... --</option>
             </select>
             
-            <!-- معرض صور السيارة القابل للتكبير -->
             <div id="carGallery" class="car-gallery"></div>
             <div id="carSpecs" class="specs-box"></div>
 
@@ -75,16 +72,22 @@
                 الإجمالي المتوقع: <span id="totalAmount">0</span> جنيه
             </div>
 
-            <label>📄 صورة رخصة القيادة أو الباسبور:</label>
+            <label>📄 صورة رخصة القيادة <span class="req-star">*</span>:</label>
             <div class="file-upload-box">
-                <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
-                <span id="idStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+                <input type="file" id="licenseFile" accept="image/*" onchange="convertImg(this, 'licenseStatus')">
+                <span id="licenseStatus" style="font-size: 11px; color: #38bdf8;">إجباري رفع الرخصة</span>
             </div>
 
-            <label>✈️ تذكرة السفر (إن وجدت):</label>
+            <label>🆔 صورة البطاقة الشخصية أو الباسبور <span class="req-star">*</span>:</label>
+            <div class="file-upload-box">
+                <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
+                <span id="idStatus" style="font-size: 11px; color: #38bdf8;">إجباري رفع الهوية أو الباسبور</span>
+            </div>
+
+            <label>✈️ تذكرة السفر (إن وجدت - اختياري):</label>
             <div class="file-upload-box">
                 <input type="file" id="ticketFile" accept="image/*" onchange="convertImg(this, 'ticketStatus')">
-                <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+                <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">اختياري</span>
             </div>
 
             <button class="btn-submit" onclick="submitBooking()">إرسال طلب الحجز للشركة 🚀</button>
@@ -111,6 +114,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        let licenseBase64 = "";
         let idBase64 = "";
         let ticketBase64 = "";
 
@@ -121,7 +125,6 @@
             const carsSnapshot = await db.collection("cars").get();
             carsSnapshot.forEach(doc => {
                 let car = doc.data();
-                // تجهيز بيانات الصور لتمريرها للقائمة
                 let imgsList = car.imgs ? JSON.stringify(car.imgs) : (car.img ? JSON.stringify([car.img]) : JSON.stringify([]));
 
                 carSelect.innerHTML += `<option value="${car.name}" 
@@ -138,9 +141,12 @@
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
                 reader.onload = function (e) {
+                    if(statusId === 'licenseStatus') licenseBase64 = e.target.result;
                     if(statusId === 'idStatus') idBase64 = e.target.result;
                     if(statusId === 'ticketStatus') ticketBase64 = e.target.result;
+                    
                     document.getElementById(statusId).innerText = "✅ تم رفعه بنجاح";
+                    document.getElementById(statusId).style.color = "#10b981";
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -170,7 +176,7 @@
                 }
 
                 specsBox.style.display = 'block';
-                specsBox.innerHTML = `💰 <b>الأسعار:</b> يومي: ${selectedOption.getAttribute('data-pday')} ج.م | نصف شهر: ${selectedOption.getAttribute('data-phalf')} ج.م | شهر: ${selectedOption.getAttribute('data-pmonth')} ج.م <br><small style="color:#94a3b8;">💡 اضغط على أي صورة لتكبيرها ومشاهدتها بوضوح</small>`;
+                specsBox.innerHTML = `💰 <b>الأسعار:</b> يومي: ${selectedOption.getAttribute('data-pday')} ج.م | نصف شهر: ${selectedOption.getAttribute('data-phalf')} ج.م | شهر: ${selectedOption.getAttribute('data-pmonth')} ج.م <br><small style="color:#94a3b8;">💡 اضغط على أي صورة لتكبيرها</small>`;
             } else {
                 galleryBox.style.display = 'none';
                 specsBox.style.display = 'none';
@@ -178,13 +184,11 @@
             calculateTotal();
         }
 
-        // فتح نافذة تكبير الصورة
         function openImageModal(url) {
             document.getElementById('modalImg').src = url;
             document.getElementById('modalOverlay').style.display = 'flex';
         }
 
-        // غلق نافذة تكبير الصورة
         function closeImageModal() {
             document.getElementById('modalOverlay').style.display = 'none';
         }
@@ -237,7 +241,16 @@
             const startDate = document.getElementById('custStartDate').value;
             const endDate = document.getElementById('custEndDate').value;
 
-            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء جميع البيانات الأساسية!");
+            // التحقق من الإجبارية
+            if (!name || !phone || !car || !startDate || !endDate) {
+                return alert("برجاء ملء جميع البيانات الأساسية للحجز!");
+            }
+            if (!licenseBase64) {
+                return alert("عذراً، يجب إرفاق صورة رخصة القيادة بشكل إجباري!");
+            }
+            if (!idBase64) {
+                return alert("عذراً، يجب إرفاق صورة البطاقة الشخصية أو الباسبور بشكل إجباري!");
+            }
 
             await db.collection("pendingBookings").add({
                 name: name,
@@ -245,13 +258,15 @@
                 car: car,
                 startDate: startDate.replace('T', ' '),
                 endDate: endDate.replace('T', ' '),
-                idImg: idBase64 || "",
+                idImg: idBase64,
+                licenseImg: licenseBase64,
                 ticketImg: ticketBase64 || "",
                 status: "قيد المراجعة ⏳",
                 createdAt: new Date()
             });
 
-            alert('تم إرسال طلب الحجز للشركة بنجاح!');
+            // رسالة التأكيد للعميل
+            alert('✅ تم إرسال طلب الحجز بنجاح!\n\nشكراً لك، سيتم التواصل معك قريباً جداً عبر الهاتف لتأكيد تفاصيل الحجز.');
             location.reload();
         }
 
