@@ -1,63 +1,88 @@
-       <!DOCTYPE html>
+     <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - حجز سيارة</title>
+    <title>AMRS - حجز سيارة متطور</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px; margin: 0; }
+        .container { max-width: 500px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { color: #38bdf8; }
-        .booking-card { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; margin: 0 auto; border-top: 5px solid #38bdf8; }
+        .header h1 { color: #38bdf8; margin-bottom: 5px; }
+        .booking-card { background: #1e293b; padding: 25px; border-radius: 12px; margin-bottom: 20px; border-top: 5px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
-        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 25px; }
+        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 20px; transition: 0.2s; }
+        .btn-submit:hover { background: #059669; }
+        .btn-track { background: #38bdf8; color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .car-status-msg { font-size: 12px; color: #eab308; margin-top: 5px; display: block; }
         .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
+        .specs-box { background: #0f172a; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; color: #38bdf8; display: none; }
+        .price-tag { background: #334155; padding: 12px; border-radius: 8px; text-align: center; margin-top: 15px; font-size: 16px; font-weight: bold; color: #10b981; }
+        .track-result { background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 13px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🚗 AMRS Car Rental</h1>
-        <p>احجز سيارتك المفضلة بكل سهولة</p>
-    </div>
-
-    <div class="booking-card">
-        <label>الاسم الكريم:</label>
-        <input type="text" id="custName" placeholder="اكتب اسمك بالكامل">
-
-        <label>رقم الموبايل:</label>
-        <input type="tel" id="custPhone" placeholder="رقم تليفونك">
-
-        <label>اختر السيارة المطلوبة:</label>
-        <select id="custCar" onchange="onCarSelect()">
-            <option value="">-- جاري التحميل... --</option>
-        </select>
-        <img id="carPreviewImg" class="preview-img">
-        <span id="carStatusMsg" class="car-status-msg"></span>
-
-        <label>تاريخ الاستلام:</label>
-        <input type="datetime-local" id="custStartDate">
-
-        <label>تاريخ الإرجاع:</label>
-        <input type="datetime-local" id="custEndDate">
-
-        <label>📄 صورة رخصة القيادة أو الباسبور:</label>
-        <div class="file-upload-box">
-            <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
-            <span id="idStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 AMRS Car Rental</h1>
+            <p>بوابتك الأولى لتأجير السيارات الفاخرة</p>
         </div>
 
-        <label>✈️ تذكرة السفر (إن وجدت):</label>
-        <div class="file-upload-box">
-            <input type="file" id="ticketFile" accept="image/*" onchange="convertImg(this, 'ticketStatus')">
-            <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+        <!-- بطاقة الحجز الرئيسية -->
+        <div class="booking-card">
+            <h2>📝 حجز سيارة جديدة</h2>
+            
+            <label>الاسم الكريم:</label>
+            <input type="text" id="custName" placeholder="اكتب اسمك بالكامل">
+
+            <label>رقم الموبايل:</label>
+            <input type="tel" id="custPhone" placeholder="رقم تليفونك">
+
+            <label>اختر السيارة المطلوبة:</label>
+            <select id="custCar" onchange="onCarSelect()">
+                <option value="">-- جاري تحميل الأسطول... --</option>
+            </select>
+            <img id="carPreviewImg" class="preview-img">
+            <div id="carSpecs" class="specs-box"></div>
+            <span id="carStatusMsg" class="car-status-msg"></span>
+
+            <label>تاريخ ووقت الاستلام:</label>
+            <input type="datetime-local" id="custStartDate" onchange="calculateTotal()">
+
+            <label>تاريخ ووقت الإرجاع:</label>
+            <input type="datetime-local" id="custEndDate" onchange="calculateTotal()">
+
+            <div id="totalPriceBox" class="price-tag" style="display:none;">
+                الإجمالي المتوقع: <span id="totalAmount">0</span> جنيه
+            </div>
+
+            <label>📄 صورة رخصة القيادة أو الباسبور:</label>
+            <div class="file-upload-box">
+                <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
+                <span id="idStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+            </div>
+
+            <label>✈️ تذكرة السفر (إن وجدت):</label>
+            <div class="file-upload-box">
+                <input type="file" id="ticketFile" accept="image/*" onchange="convertImg(this, 'ticketStatus')">
+                <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+            </div>
+
+            <button class="btn-submit" onclick="submitBooking()">إرسال طلب الحجز للشركة 🚀</button>
         </div>
 
-        <button class="btn-submit" onclick="submitBooking()">إرسال طلب الحجز للشركة 🚀</button>
+        <!-- بطاقة تتبع حالة الحجز للعميل -->
+        <div class="booking-card" style="border-top-color: #f59e0b;">
+            <h2>🔍 تتبع حالة حجزك السابق</h2>
+            <label>ادخل رقم الموبايل المسجل به:</label>
+            <input type="tel" id="trackPhone" placeholder="رقم الموبايل">
+            <button class="btn-track" onclick="trackBooking()">استعلام عن الحالة 🔎</button>
+            <div id="trackResultContainer"></div>
+        </div>
     </div>
 
     <script>
@@ -72,9 +97,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        let carsData = [];
         let idBase64 = "";
         let ticketBase64 = "";
-        let contractsData = [];
 
         async function loadData() {
             const carSelect = document.getElementById('custCar');
@@ -83,11 +108,9 @@
             const carsSnapshot = await db.collection("cars").get();
             carsSnapshot.forEach(doc => {
                 let car = doc.data();
-                carSelect.innerHTML += `<option value="${car.name}" data-img="${car.img || ''}">${car.name}</option>`;
+                carsData.push(car);
+                carSelect.innerHTML += `<option value="${car.name}" data-img="${car.img || ''}" data-price="${car.price || 500}" data-specs="${car.specs || 'تكييف، أوتوماتيك، مقاعد مريحة'}">${car.name}</option>`;
             });
-
-            const contractsSnapshot = await db.collection("contracts").where("status", "==", "نشط").get();
-            contractsSnapshot.forEach(doc => contractsData.push(doc.data()));
         }
 
         function convertImg(input, statusId) {
@@ -107,21 +130,47 @@
             let select = document.getElementById('custCar');
             let selectedOption = select.options[select.selectedIndex];
             let imgUrl = selectedOption.getAttribute('data-img');
+            let specs = selectedOption.getAttribute('data-specs');
             let imgBox = document.getElementById('carPreviewImg');
-            let msgBox = document.getElementById('carStatusMsg');
+            let specsBox = document.getElementById('carSpecs');
 
             if (imgUrl) { imgBox.src = imgUrl; imgBox.style.display = 'block'; }
             else { imgBox.style.display = 'none'; }
 
-            let carName = select.value;
-            msgBox.innerHTML = "";
-            let activeContract = contractsData.find(c => c.carName === carName);
-            if (activeContract) {
-                msgBox.style.color = "#eab308";
-                msgBox.innerHTML = `⚠️ مؤجرة حالياً حتى: ${new Date(activeContract.endDate).toLocaleString('ar-EG')}`;
-            } else if(carName) {
-                msgBox.style.color = "#10b981";
-                msgBox.innerHTML = `✅ السيارة متاحة.`;
+            if (select.value) {
+                specsBox.style.display = 'block';
+                specsBox.innerHTML = `⚙️ <b>المواصفات:</b> ${specs}`;
+            } else {
+                specsBox.style.display = 'none';
+            }
+            calculateTotal();
+        }
+
+        // حساب تكلفة الإيجار أوتوماتيك
+        function calculateTotal() {
+            let select = document.getElementById('custCar');
+            let selectedOption = select.options[select.selectedIndex];
+            let pricePerDay = Number(selectedOption.getAttribute('data-price')) || 500;
+            
+            let start = document.getElementById('custStartDate').value;
+            let end = document.getElementById('custEndDate').value;
+            let priceBox = document.getElementById('totalPriceBox');
+
+            if(start && end && select.value) {
+                let startDate = new Date(start);
+                let endDate = new Date(end);
+                let diffTime = endDate - startDate;
+                let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if(diffDays > 0) {
+                    let total = diffDays * pricePerDay;
+                    document.getElementById('totalAmount').innerText = total;
+                    priceBox.style.display = 'block';
+                } else {
+                    priceBox.style.display = 'none';
+                }
+            } else {
+                priceBox.style.display = 'none';
             }
         }
 
@@ -134,7 +183,6 @@
 
             if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء جميع البيانات الأساسية!");
 
-            // رفع الطلب للداشبورد مباشرة
             await db.collection("pendingBookings").add({
                 name: name,
                 phone: phone,
@@ -143,14 +191,46 @@
                 endDate: endDate.replace('T', ' '),
                 idImg: idBase64 || "",
                 ticketImg: ticketBase64 || "",
+                status: "قيد المراجعة ⏳",
                 createdAt: new Date()
             });
 
-            alert('تم إرسال طلب الحجز بنجاح! سيتم مراجعته والتواصل معك قريباً.');
+            alert('تم إرسال طلب الحجز للشركة بنجاح!');
             location.reload();
+        }
+
+        // تتبع الحجز برقم الموبايل
+        async function trackBooking() {
+            let phone = document.getElementById('trackPhone').value;
+            let container = document.getElementById('trackResultContainer');
+            container.innerHTML = 'جاري البحث...';
+
+            if(!phone) return alert('اكتب رقم الموبايل للاستعلام!');
+
+            let snapshot = await db.collection("pendingBookings").where("phone", "==", phone).get();
+            let contractsSnapshot = await db.collection("contracts").where("clientPhone", "==", phone).get();
+            
+            container.innerHTML = '';
+            let found = false;
+
+            snapshot.forEach(doc => {
+                let b = doc.data();
+                found = true;
+                container.innerHTML += `<div class="track-result">🚗 حجز سيارة (${b.car})<br>📅 الحالة: <b style="color:#f59e0b;">قيد المراجعة لدى الإدارة ⏳</b></div>`;
+            });
+
+            contractsSnapshot.forEach(doc => {
+                let c = doc.data();
+                found = true;
+                container.innerHTML += `<div class="track-result">🚗 عقد نشط (${c.carName})<br>📅 الحالة: <b style="color:#10b981;">تم القبول والتأكيد بنجاح ✓</b></div>`;
+            });
+
+            if(!found) {
+                container.innerHTML = '<div class="track-result" style="color:#ef4444;">لا توجد طلبات حجز أو عقود نشطة مسجلة بهذا الرقم.</div>';
+            }
         }
 
         loadData();
     </script>
 </body>
-</html>  
+</html>
