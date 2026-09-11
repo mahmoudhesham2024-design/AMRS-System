@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - حجز سيارة</title>
+    <title>AMRS - حجز سيارة ورفع المستندات</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -13,6 +13,7 @@
         .booking-card { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; margin: 0 auto; border-top: 5px solid #38bdf8; }
         label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
+        .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
         .btn-whatsapp { background: #25D366; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 25px; }
         .car-status-msg { font-size: 12px; color: #eab308; margin-top: 5px; display: block; }
         .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
@@ -21,12 +22,12 @@
 <body>
     <div class="header">
         <h1>🚗 AMRS Car Rental</h1>
-        <p>احجز سيارتك المفضلة الآن</p>
+        <p>احجز سيارتك وارفَع مستنداتك بسهولة</p>
     </div>
 
     <div class="booking-card">
         <label>الاسم الكريم:</label>
-        <input type="text" id="custName" placeholder="اكتب اسمك">
+        <input type="text" id="custName" placeholder="اكتب اسمك بالكامل">
 
         <label>رقم الموبايل:</label>
         <input type="tel" id="custPhone" placeholder="رقم تليفونك">
@@ -44,7 +45,20 @@
         <label>تاريخ الإرجاع:</label>
         <input type="datetime-local" id="custEndDate">
 
-        <button class="btn-whatsapp" onclick="sendBooking()">إرسال طلب الحجز عبر واتساب 💬</button>
+        <!-- قسم رفع المستندات -->
+        <label>📄 صورة رخصة القيادة أو الباسبور:</label>
+        <div class="file-upload-box">
+            <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
+            <span id="idStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+        </div>
+
+        <label>✈️ تذكرة السفر (إن وجدت):</label>
+        <div class="file-upload-box">
+            <input type="file" id="ticketFile" accept="image/*" onchange="convertImg(this, 'ticketStatus')">
+            <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
+        </div>
+
+        <button class="btn-whatsapp" onclick="sendBooking()">إرسال طلب الحجز والمستندات عبر واتساب 💬</button>
     </div>
 
     <script>
@@ -61,6 +75,8 @@
 
         let carsData = [];
         let contractsData = [];
+        let idBase64 = "";
+        let ticketBase64 = "";
 
         async function loadData() {
             const carSelect = document.getElementById('custCar');
@@ -75,6 +91,20 @@
 
             const contractsSnapshot = await db.collection("contracts").where("status", "==", "نشط").get();
             contractsSnapshot.forEach(doc => contractsData.push(doc.data()));
+        }
+
+        // تحويل الصورة لـ Text عشان تقدر تسافر عبر الواتساب أو تخزن بسهولة
+        function convertImg(input, statusId) {
+            if (input.files && input.files[0]) {
+                let reader = new FileReader();
+                reader.onload = function (e) {
+                    if(statusId === 'idStatus') idBase64 = e.target.result;
+                    if(statusId === 'ticketStatus') ticketBase64 = e.target.result;
+                    document.getElementById(statusId).innerText = "✅ تم رفعه بنجاح";
+                    document.getElementById(statusId).style.color = "#10b981";
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
         }
 
         function onCarSelect() {
@@ -97,7 +127,7 @@
             if (activeContract) {
                 let endDate = new Date(activeContract.endDate).toLocaleString('ar-EG');
                 msgBox.style.color = "#eab308";
-                msgBox.innerHTML = `⚠️ مؤجرة حالياً، وستكون متاحة بداية من: ${endDate}`;
+                msgBox.innerHTML = `⚠️ مؤجرة حالياً، متاحة بداية من: ${endDate}`;
             } else if(carName) {
                 msgBox.style.color = "#10b981";
                 msgBox.innerHTML = `✅ السيارة متاحة للتسليم الفوري.`;
@@ -105,16 +135,25 @@
         }
 
         function sendBooking() {
-            const adminWhatsApp = "201000000000"; // رقمك
+            const adminWhatsApp = "201024870700"; // حط رقمك هنا
             const name = document.getElementById('custName').value;
             const phone = document.getElementById('custPhone').value;
             const car = document.getElementById('custCar').value;
             const startDate = document.getElementById('custStartDate').value;
             const endDate = document.getElementById('custEndDate').value;
 
-            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء جميع البيانات!");
+            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء البيانات الأساسية!");
 
-            const msg = `*طلب حجز جديد* 🚗\n👤 الاسم: ${name}\n📞 الموبايل: ${phone}\n🚙 السيارة: ${car}\n📅 من: ${startDate.replace('T', ' ')}\n📅 إلى: ${endDate.replace('T', ' ')}`;
+            let msg = `*طلب حجز جديد مع المستندات* 🚗\n` +
+                      `👤 الاسم: ${name}\n` +
+                      `📞 الموبايل: ${phone}\n` +
+                      `🚙 السيارة: ${car}\n` +
+                      `📅 من: ${startDate.replace('T', ' ')}\n` +
+                      `📅 إلى: ${endDate.replace('T', ' ')}\n`;
+
+            if(idBase64) msg += `\n📄 تم إرفاق صورة الرخصة/الباسبور`;
+            if(ticketBase64) msg += `\n✈️ تم إرفاق تذكرة السفر`;
+
             window.open(`https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
