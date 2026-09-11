@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMRS - لوحة الإدارة السحابية</title>
+    <!-- مكتبات فايربيز -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: #fff; padding: 15px; }
+        .card { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-right: 5px solid #38bdf8; }
+        input, select { width: 100%; padding: 10px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; margin-bottom: 10px; }
+        .btn { background: #38bdf8; padding: 10px; width: 100%; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; }
+        .item-box { background: #334155; padding: 10px; margin-top: 10px; border-radius: 5px; }
+        .status-green { color: #10b981; } .status-red { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align:center; color:#38bdf8;">🚗 AMRS (الإدارة)</h1>
+    
+    <!-- قسم السيارات -->
+    <div class="card" style="border-color: #10b981;">
+        <h2>🚙 أسطول السيارات (متصل بالسيرفر)</h2>
+        <div id="carsList">جاري التحميل...</div>
+        <hr style="border-color: #334155; margin: 15px 0;">
+        <input type="text" id="newCarName" placeholder="اسم ورقم السيارة">
+        <button class="btn" style="background:#10b981;" onclick="addCar()">إضافة للأسطول السحابي ☁️</button>
+    </div>
+
+    <!-- قسم العقود -->
+    <div class="card">
+        <h2>📝 تسجيل عقد إيجار</h2>
+        <input type="text" id="clientName" placeholder="اسم العميل">
+        <input type="tel" id="clientPhone" placeholder="رقم التليفون">
+        <select id="carSelect"><option value="">-- اختار العربية --</option></select>
+        <input type="datetime-local" id="endDate">
+        <button class="btn" onclick="addContract()">تأكيد الحجز ورفعه للسيرفر 🚀</button>
+    </div>
+
+    <script>
+        // إعدادات فايربيز بتاعتك
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGdC-CfyaUiftoLyn2Zx2lWX2CeD-ojPc",
+            authDomain: "amrs-1b4ab.firebaseapp.com",
+            projectId: "amrs-1b4ab",
+            storageBucket: "amrs-1b4ab.firebasestorage.app",
+            messagingSenderId: "675822216625",
+            appId: "1:675822216625:web:8371b50461e7ebb2334990"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // قراءة السيارات لايف
+        db.collection("cars").onSnapshot((snapshot) => {
+            const list = document.getElementById('carsList');
+            const select = document.getElementById('carSelect');
+            list.innerHTML = ''; select.innerHTML = '<option value="">-- اختار العربية --</option>';
+            
+            snapshot.forEach(doc => {
+                let car = doc.data();
+                list.innerHTML += `<div class="item-box"><b>${car.name}</b> <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:5px; border-radius:3px; float:left;">حذف</button></div><div style="clear:both;"></div>`;
+                select.innerHTML += `<option value="${car.name}">${car.name}</option>`;
+            });
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات.';
+        });
+
+        async function addCar() {
+            let name = document.getElementById('newCarName').value;
+            if(!name) return alert('اكتب اسم العربية!');
+            await db.collection("cars").add({ name: name, createdAt: new Date() });
+            document.getElementById('newCarName').value = '';
+            alert('تمت الإضافة بنجاح!');
+        }
+
+        async function deleteCar(id) {
+            if(confirm('متأكد إنك عايز تحذف العربية دي؟ (هتتشال من صفحة العميل)')) {
+                await db.collection("cars").doc(id).delete();
+            }
+        }
+
+        async function addContract() {
+            let name = document.getElementById('clientName').value;
+            let phone = document.getElementById('clientPhone').value;
+            let car = document.getElementById('carSelect').value;
+            let endDate = document.getElementById('endDate').value;
+
+            if(!name || !car || !endDate) return alert('البيانات ناقصة!');
+
+            await db.collection("contracts").add({
+                clientName: name,
+                clientPhone: phone,
+                carName: car,
+                endDate: endDate,
+                status: 'نشط'
+            });
+            alert('تم تسجيل العقد! العميل هيشوف العربية دي محجوزة لحد الميعاد ده.');
+        }
+    </script>
+</body>
+</html>

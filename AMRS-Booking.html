@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMRS - حجز سيارة</title>
+    <!-- مكتبات فايربيز -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #38bdf8; margin-bottom: 5px; }
+        .booking-card { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; margin: 0 auto; border-top: 5px solid #38bdf8; }
+        label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
+        .btn-whatsapp { background: #25D366; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 25px; }
+        .car-status-msg { font-size: 12px; color: #eab308; margin-top: 5px; display: block; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 AMRS Car Rental</h1>
+        <p>احجز سيارتك الآن بخطوات بسيطة</p>
+    </div>
+
+    <div class="booking-card">
+        <label>الاسم الكريم:</label>
+        <input type="text" id="custName" placeholder="اكتب اسمك بالكامل">
+
+        <label>رقم الموبايل:</label>
+        <input type="tel" id="custPhone" placeholder="رقم تليفونك">
+
+        <label>اختر السيارة المطلوبة:</label>
+        <select id="custCar" onchange="checkCarStatus()">
+            <option value="">-- جاري تحميل السيارات... --</option>
+        </select>
+        <span id="carStatusMsg" class="car-status-msg"></span>
+
+        <label>تاريخ ووقت الاستلام:</label>
+        <input type="datetime-local" id="custStartDate">
+
+        <label>تاريخ ووقت الإرجاع:</label>
+        <input type="datetime-local" id="custEndDate">
+
+        <button class="btn-whatsapp" onclick="sendBooking()">إرسال طلب الحجز عبر واتساب 💬</button>
+    </div>
+
+    <script>
+        // إعدادات فايربيز بتاعتك بالظبط
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGdC-CfyaUiftoLyn2Zx2lWX2CeD-ojPc",
+            authDomain: "amrs-1b4ab.firebaseapp.com",
+            projectId: "amrs-1b4ab",
+            storageBucket: "amrs-1b4ab.firebasestorage.app",
+            messagingSenderId: "675822216625",
+            appId: "1:675822216625:web:8371b50461e7ebb2334990"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let carsData = [];
+        let contractsData = [];
+
+        // سحب السيارات والعقود من السيرفر
+        async function loadData() {
+            const carSelect = document.getElementById('custCar');
+            carSelect.innerHTML = '<option value="">-- اختار السيارة --</option>';
+            
+            // نجيب العربيات
+            const carsSnapshot = await db.collection("cars").get();
+            carsSnapshot.forEach(doc => {
+                let car = doc.data();
+                carsData.push(car);
+                carSelect.innerHTML += `<option value="${car.name}">${car.name}</option>`;
+            });
+
+            // نجيب العقود النشطة عشان نعرف المواعيد
+            const contractsSnapshot = await db.collection("contracts").where("status", "==", "نشط").get();
+            contractsSnapshot.forEach(doc => contractsData.push(doc.data()));
+        }
+
+        function checkCarStatus() {
+            let selectedCar = document.getElementById('custCar').value;
+            let msgBox = document.getElementById('carStatusMsg');
+            msgBox.innerHTML = "";
+            msgBox.style.color = "#10b981"; // أخضر
+
+            let activeContract = contractsData.find(c => c.carName === selectedCar);
+            if (activeContract) {
+                let endDate = new Date(activeContract.endDate).toLocaleString('ar-EG');
+                msgBox.style.color = "#eab308"; // أصفر
+                msgBox.innerHTML = `⚠️ تنبيه: هذه السيارة مؤجرة حالياً وستكون متاحة للحجز بداية من: ${endDate}`;
+            } else if(selectedCar) {
+                msgBox.innerHTML = `✅ السيارة متاحة حالياً للتسليم الفوري.`;
+            }
+        }
+
+        function sendBooking() {
+            // ⚠️ غير الرقم ده لرقمك
+            const adminWhatsApp = "201000000000"; 
+            
+            const name = document.getElementById('custName').value;
+            const phone = document.getElementById('custPhone').value;
+            const car = document.getElementById('custCar').value;
+            const startDate = document.getElementById('custStartDate').value;
+            const endDate = document.getElementById('custEndDate').value;
+
+            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء جميع البيانات!");
+
+            const msg = `*طلب حجز جديد* 🚗\n👤 الاسم: ${name}\n📞 الموبايل: ${phone}\n🚙 السيارة: ${car}\n📅 من: ${startDate.replace('T', ' ')}\n📅 إلى: ${endDate.replace('T', ' ')}`;
+            window.open(`https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
