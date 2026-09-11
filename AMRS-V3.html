@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - لوحة الإدارة الذكية الشاملة</title>
+    <title>AMRS - لوحة الإدارة الذكية</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -28,7 +28,6 @@
 </head>
 <body>
 
-    <!-- شاشة تسجيل الدخول -->
     <div id="loginOverlay">
         <div class="login-box">
             <h2>🔐 دخول الإدارة</h2>
@@ -38,62 +37,63 @@
     </div>
 
     <div class="container" id="mainContent" style="display:none;">
-        <h1>🚗 AMRS (لوحة التحكم الذكية والشاملة)</h1>
+        <h1>🚗 AMRS (لوحة التحكم الذكية)</h1>
         
-        <!-- تنبيهات انتهاء العقود -->
         <div class="card" style="border-color: #ef4444;" id="alertsCard">
             <h2>🚨 تنبيهات انتهاء العقود اليوم</h2>
             <div id="alertsList">جاري فحص العقود...</div>
         </div>
 
-        <!-- طلبات العملاء الواردة -->
         <div class="card" style="border-color: #f59e0b;">
             <h2>⏳ طلبات الحجز الواردة</h2>
             <div id="pendingBookingsList">جاري التحميل...</div>
         </div>
 
-        <!-- إدارة أسطول السيارات والصيانة -->
+        <!-- إضافة السيارة مع الأسعار المتدرجة -->
         <div class="card" style="border-color: #10b981;">
-            <h2>🚙 أسطول السيارات والصيانة</h2>
+            <h2>🚙 أسطول السيارات والأسعار المتدرجة</h2>
             <div id="carsList">جاري التحميل...</div>
             <hr style="border-color: #334155; margin: 15px 0;">
-            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة">
+            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة (مثال: كيا سيراتو)">
             <input type="number" id="carKm" placeholder="عداد الكيلومترات الحالي">
+            
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="priceDay" placeholder="سعر اليوم (جنيه)">
+                <input type="number" id="priceHalfMonth" placeholder="سعر نصف الشهر (15 يوم)">
+                <input type="number" id="priceMonth" placeholder="سعر الشهر (30 يوم)">
+            </div>
+
             <div class="file-upload-box">
                 <input type="file" id="carImageFile" accept="image/*" onchange="convertCarImg(this)">
                 <span id="carImgStatus" style="font-size: 11px; color: #38bdf8;">صورة السيارة من الاستوديو</span>
             </div>
-            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة سيارة للأسطول ☁️</button>
+            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة السيارة بالأسعار ☁️</button>
         </div>
 
-        <!-- العقود النشطة -->
         <div class="card">
             <h2>📝 العقود النشطة</h2>
             <div id="contractsList">جاري التحميل...</div>
         </div>
 
-        <!-- قسم المخالفات المرتبطة بالعملاء -->
         <div class="card" style="border-color: #f59e0b;">
             <h2>⚠️ تسجيل مخالفة أو غرامة على عميل</h2>
             <input type="text" id="violationCar" placeholder="اسم ورقم السيارة المخالفة">
-            <input type="text" id="violationClient" placeholder="اسم العميل المستأجر (أو المخالف)">
-            <input type="text" id="violationDesc" placeholder="تفاصيل المخالفة (سرعة، ركن خاطئ...)">
+            <input type="text" id="violationClient" placeholder="اسم العميل المخالف">
+            <input type="text" id="violationDesc" placeholder="تفاصيل المخالفة">
             <input type="number" id="violationCost" placeholder="قيمة الغرامة (جنيه)">
-            <button class="btn" style="background:#f59e0b; color:#0f172a;" onclick="addViolation()">إثبات المخالفة على العميل 🚨</button>
-            <div id="violationsList" style="margin-top: 15px;">جاري تحميل المخالفات...</div>
+            <button class="btn" style="background:#f59e0b; color:#0f172a;" onclick="addViolation()">إثبات المخالفة 🚨</button>
+            <div id="violationsList" style="margin-top: 15px;">جاري التحميل...</div>
         </div>
 
-        <!-- أرشيف المصروفات -->
         <div class="card" style="border-color: #f97316;">
-            <h2>🛠️ أرشيف المصروفات (صيانة، غسيل...)</h2>
+            <h2>🛠️ أرشيف المصروفات</h2>
             <div id="expensesList">جاري التحميل...</div>
-            <input type="text" id="expDesc" placeholder="بيان المصروف (غسيل، تغيير زيت...)">
+            <input type="text" id="expDesc" placeholder="بيان المصروف (صيانة، غسيل...)">
             <input type="number" id="expAmount" placeholder="المبلغ (جنيه)">
-            <button class="btn" style="background:#f97316; color:#fff;" onclick="addExpense()">تسجيل مصروف جديد 💸</button>
+            <button class="btn" style="background:#f97316; color:#fff;" onclick="addExpense()">تسجيل مصروف 💸</button>
             <h3 style="margin-top:15px; color:#f97316;">إجمالي المصروفات: <span id="totalExpenses">0</span> جنيه</h3>
         </div>
 
-        <!-- أرشيف الدخل وصافي الربح -->
         <div class="card" style="border-color: #ec4899;">
             <h2>💰 صافي الأرباح والحسابات</h2>
             <div id="incomeList">جاري التحميل...</div>
@@ -134,7 +134,6 @@
             }
         }
 
-        // جلب طلبات الحجز مع تقييم العملاء
         db.collection("pendingBookings").onSnapshot((snapshot) => {
             const list = document.getElementById('pendingBookingsList');
             list.innerHTML = '';
@@ -174,7 +173,6 @@
             if(confirm('متأكد من الرفض؟')) await db.collection("pendingBookings").doc(id).delete();
         }
 
-        // تنبيهات انتهاء العقود اليوم
         db.collection("contracts").onSnapshot((snapshot) => {
             const list = document.getElementById('contractsList');
             const alertsList = document.getElementById('alertsList');
@@ -185,25 +183,27 @@
             snapshot.forEach(doc => {
                 let c = doc.data();
                 list.innerHTML += `<div class="item-box"><span>🚗 ${c.carName} - العميل: ${c.clientName} (تقييم: ${c.rating}⭐)</span> <span class="badge" style="background:#f59e0b;">مؤجرة حتى: ${c.endDate}</span></div>`;
-                
                 if(c.endDate && c.endDate.startsWith(todayStr)) {
                     alertCount++;
-                    alertsList.innerHTML += `<div class="alert-box">⚠️ تحذير: عقد السيارة <b>${c.carName}</b> للعميل <b>${c.clientName}</b> ينتهي اليوم! المتابعة مطلوبة.</div>`;
+                    alertsList.innerHTML += `<div class="alert-box">⚠️ تحذير: عقد السيارة <b>${c.carName}</b> للعميل <b>${c.clientName}</b> ينتهي اليوم!</div>`;
                 }
             });
-
             if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة.';
             if(alertCount === 0) alertsList.innerHTML = 'لا توجد عقود تنتهي اليوم، الأمور مستقرة! ✅';
         });
 
-        // الأسطول والعدادات والصيانة
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let car = doc.data();
-                let imgTag = car.img ? `<img src="${car.img}" class="car-thumb">` : `<span>🚗</span>`;
-                list.innerHTML += `<div class="item-box"><div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> <span style="font-size:12px; color:#38bdf8; margin-right:10px;">(العداد: ${car.km || 0} كم)</span></div> <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button></div>`;
+                let imgTag = car.img ? `<img src="${car.img}" class="car-thumb">` : `🚗`;
+                list.innerHTML += `<div class="item-box">
+                    <div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> 
+                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(يومي: ${car.pDay || 0} | نص شهر: ${car.pHalf || 0} | شهر: ${car.pMonth || 0})</span>
+                    </div> 
+                    <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button>
+                </div>`;
             });
             if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات.';
         });
@@ -211,18 +211,34 @@
         async function addCar() {
             let name = document.getElementById('newCarName').value;
             let km = document.getElementById('carKm').value || 0;
+            let pDay = Number(document.getElementById('priceDay').value) || 500;
+            let pHalf = Number(document.getElementById('priceHalfMonth').value) || (pDay * 14);
+            let pMonth = Number(document.getElementById('priceMonth').value) || (pDay * 26);
+
             if(!name) return alert('اكتب اسم العربية!');
-            await db.collection("cars").add({ name: name, km: Number(km), img: carImageBase64 || "", createdAt: new Date() });
+            
+            await db.collection("cars").add({ 
+                name: name, 
+                km: Number(km), 
+                pDay: pDay, 
+                pHalf: pHalf, 
+                pMonth: pMonth, 
+                img: carImageBase64 || "", 
+                createdAt: new Date() 
+            });
+
             document.getElementById('newCarName').value = '';
             document.getElementById('carKm').value = '';
-            alert('تمت إضافة السيارة والعداد بنجاح!');
+            document.getElementById('priceDay').value = '';
+            document.getElementById('priceHalfMonth').value = '';
+            document.getElementById('priceMonth').value = '';
+            alert('تمت إضافة السيارة بأسعارها المتدرجة بنجاح!');
         }
 
         async function deleteCar(id) {
             if(confirm('متأكد من الحذف؟')) await db.collection("cars").doc(id).delete();
         }
 
-        // المخالفات المرتبطة بالعملاء
         async function addViolation() {
             let car = document.getElementById('violationCar').value;
             let client = document.getElementById('violationClient').value;
@@ -230,16 +246,8 @@
             let cost = Number(document.getElementById('violationCost').value);
 
             if(!car || !desc || !cost) return alert('برجاء استكمال بيانات المخالفة!');
-
-            await db.collection("violations").add({ 
-                car: car, 
-                client: client || "غير محدد", 
-                desc: desc, 
-                cost: cost, 
-                date: new Date().toLocaleDateString('ar-EG') 
-            });
-
-            alert('تم تسجيل المخالفة والغرامة على العميل بنجاح.');
+            await db.collection("violations").add({ car, client: client || "غير محدد", desc, cost, date: new Date().toLocaleDateString('ar-EG') });
+            alert('تم تسجيل المخالفة بنجاح.');
             document.getElementById('violationCar').value = '';
             document.getElementById('violationClient').value = '';
             document.getElementById('violationDesc').value = '';
@@ -260,15 +268,13 @@
             if(list.innerHTML === '') list.innerHTML = '<span style="font-size:12px; color:#94a3b8;">لا توجد مخالفات مسجلة.</span>';
         });
 
-        // المصروفات
         async function addExpense() {
             let desc = document.getElementById('expDesc').value;
             let amount = Number(document.getElementById('expAmount').value);
-            if(!desc || !amount) return alert('برجاء إدخال تفاصيل ومبلغ المصروف!');
+            if(!desc || !amount) return alert('أدخل المصروف والمبلغ!');
             await db.collection("expenses").add({ desc, amount, date: new Date().toLocaleDateString('ar-EG') });
             document.getElementById('expDesc').value = '';
             document.getElementById('expAmount').value = '';
-            alert('تم تسجيل المصروف بنجاح.');
         }
 
         let totalInc = 0, totalExp = 0;
@@ -288,7 +294,6 @@
                 list.innerHTML += `<div class="item-box"><span>🛠️ ${e.desc}</span> <span class="badge" style="background:#f97316;">-${e.amount} ج.م</span></div>`;
             });
             document.getElementById('totalExpenses').innerText = totalExp;
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد مصروفات مسجلة.';
             updateProfit();
         });
 
@@ -301,7 +306,6 @@
                 list.innerHTML += `<div class="item-box"><span>🚗 ${item.carName} (عميل: ${item.client})</span> <span class="badge">+${item.amount} ج.م</span></div>`;
             });
             document.getElementById('totalIncome').innerText = totalInc;
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد أرباح مسجلة.';
             updateProfit();
         });
     </script>
