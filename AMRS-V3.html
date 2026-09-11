@@ -72,7 +72,7 @@
         </div>
 
         <div class="card">
-            <h2>📝 العقود النشطة</h2>
+            <h2>📝 العقود النشطة (إدارة أو إلغاء)</h2>
             <div id="contractsList">جاري التحميل...</div>
         </div>
 
@@ -149,8 +149,9 @@
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let b = doc.data();
-                let idBtn = b.idImg ? `<a href="${b.idImg}" target="_blank" class="doc-btn">📄 الرخصة</a>` : ``;
-                let ticketBtn = b.ticketImg ? `<a href="${b.ticketImg}" target="_blank" class="doc-btn" style="background:#0284c7;">✈️ التذكرة</a>` : ``;
+                let licenseBtn = b.licenseImg ? `<a href="${b.licenseImg}" target="_blank" class="doc-btn">📄 الرخصة</a>` : ``;
+                let idBtn = b.idImg ? `<a href="${b.idImg}" target="_blank" class="doc-btn" style="background:#0284c7;">🆔 البطاقة</a>` : ``;
+                let ticketBtn = b.ticketImg ? `<a href="${b.ticketImg}" target="_blank" class="doc-btn" style="background:#10b981;">✈️ التذكرة</a>` : ``;
                 
                 list.innerHTML += `<div class="item-box">
                     <div>
@@ -159,7 +160,7 @@
                         <span style="font-size:11px; color:#94a3b8;">📅 من: ${b.startDate} إلى: ${b.endDate}</span>
                     </div>
                     <div>
-                        ${idBtn} ${ticketBtn}
+                        ${licenseBtn} ${idBtn} ${ticketBtn}
                         <button class="accept-btn" onclick="acceptBooking('${doc.id}', '${b.name}', '${b.phone}', '${b.car}', '${b.endDate}')">قبول ✓</button>
                         <button class="reject-btn" onclick="rejectBooking('${doc.id}')">رفض ✕</button>
                     </div>
@@ -176,13 +177,14 @@
             await db.collection("contracts").add({ clientName: name, clientPhone: phone, carName: car, endDate: endDate, rating: rating || "3", status: 'نشط' });
             await db.collection("income").add({ carName: car, amount: Number(price), client: name, date: new Date().toLocaleDateString('ar-EG') });
             await db.collection("pendingBookings").doc(id).delete();
-            alert('تم قبول الحجز وتوثيق تقييم العميل!');
+            alert('تم قبول الحجز وتوثيق تقييم العميل بنجاح!');
         }
 
         async function rejectBooking(id) {
             if(confirm('متأكد من الرفض؟')) await db.collection("pendingBookings").doc(id).delete();
         }
 
+        // العقود النشطة مع زر الإلغاء
         db.collection("contracts").onSnapshot((snapshot) => {
             const list = document.getElementById('contractsList');
             const alertsList = document.getElementById('alertsList');
@@ -192,17 +194,27 @@
 
             snapshot.forEach(doc => {
                 let c = doc.data();
-                list.innerHTML += `<div class="item-box"><span>🚗 ${c.carName} - العميل: ${c.clientName} (تقييم: ${c.rating}⭐)</span> <span class="badge" style="background:#f59e0b;">مؤجرة حتى: ${c.endDate}</span></div>`;
+                list.innerHTML += `<div class="item-box">
+                    <span>🚗 <b>${c.carName}</b> - العميل: ${c.clientName} (التقييم: ${c.rating}⭐)<br><small style="color:#f59e0b;">مؤجرة حتى: ${c.endDate}</small></span> 
+                    <button onclick="cancelContract('${doc.id}', '${c.carName}')" style="background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-weight:bold;">إلغاء العقد وتحرير السيارة ✕</button>
+                </div>`;
                 if(c.endDate && c.endDate.startsWith(todayStr)) {
                     alertCount++;
                     alertsList.innerHTML += `<div class="alert-box">⚠️ تحذير: عقد السيارة <b>${c.carName}</b> للعميل <b>${c.clientName}</b> ينتهي اليوم!</div>`;
                 }
             });
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة.';
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة حالياً.';
             if(alertCount === 0) alertsList.innerHTML = 'لا توجد عقود تنتهي اليوم، الأمور مستقرة! ✅';
         });
 
-        // عرض الأسطول مع زر تعديل الأسعار
+        // دالة إلغاء العقد النشط
+        async function cancelContract(contractId, carName) {
+            if(confirm(`هل متأكد من إلغاء عقد السيارة (${carName}) واسترجاعها للأسطول؟`)) {
+                await db.collection("contracts").doc(contractId).delete();
+                alert('تم إلغاء العقد بنجاح وأصبحت السيارة متاحة للحجز مرة أخرى.');
+            }
+        }
+
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
             list.innerHTML = '';
@@ -213,7 +225,7 @@
 
                 list.innerHTML += `<div class="item-box">
                     <div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> 
-                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(يومي: ${car.pDay || 500} | نص: ${car.pHalf || 7000} | شهر: ${car.pMonth || 13000})</span>
+                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(يومي: ${car.pDay || 500})</span>
                     </div> 
                     <div>
                         <button class="edit-btn" onclick="editCarPrices('${doc.id}', '${car.pDay || 500}', '${car.pHalf || 7000}', '${car.pMonth || 13000}')">تعديل الأسعار ⚙️</button>
@@ -224,13 +236,12 @@
             if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات.';
         });
 
-        // دالة تعديل الأسعار الفورية
         async function editCarPrices(id, oldDay, oldHalf, oldMonth) {
-            let newDay = prompt("ادخل سعر اليوم الجديد:", oldDay);
+            let newDay = prompt("سعر اليوم الجديد:", oldDay);
             if(newDay === null) return;
-            let newHalf = prompt("ادخل سعر نصف الشهر الجديد:", oldHalf);
+            let newHalf = prompt("سعر نصف الشهر الجديد:", oldHalf);
             if(newHalf === null) return;
-            let newMonth = prompt("ادخل سعر الشهر الكامل الجديد:", oldMonth);
+            let newMonth = prompt("سعر الشهر الكامل الجديد:", oldMonth);
             if(newMonth === null) return;
 
             await db.collection("cars").doc(id).update({
@@ -238,7 +249,6 @@
                 pHalf: Number(newHalf),
                 pMonth: Number(newMonth)
             });
-
             alert('تم تحديث أسعار السيارة بنجاح!');
         }
 
@@ -269,7 +279,7 @@
             document.getElementById('carImagesFiles').value = '';
             carImagesArray = [];
             document.getElementById('carImgsStatus').innerText = "لم يتم اختيار صور";
-            alert('تمت إضافة السيارة بأسعارها بنجاح!');
+            alert('تمت إضافة السيارة بنجاح!');
         }
 
         async function deleteCar(id) {
