@@ -22,6 +22,7 @@
         .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; }
         .accept-btn { background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .reject-btn { background: #ef4444; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .edit-btn { background: #f59e0b; color: #0f172a; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: #1e293b; padding: 30px; border-radius: 12px; width: 300px; text-align: center; border-top: 5px solid #38bdf8; }
     </style>
@@ -49,9 +50,8 @@
             <div id="pendingBookingsList">جاري التحميل...</div>
         </div>
 
-        <!-- إضافة السيارة مع دعم صور متعددة -->
         <div class="card" style="border-color: #10b981;">
-            <h2>🚙 أسطول السيارات (رفع أكثر من صورة)</h2>
+            <h2>🚙 أسطول السيارات والتحكم بالأسعار</h2>
             <div id="carsList">جاري التحميل...</div>
             <hr style="border-color: #334155; margin: 15px 0;">
             <input type="text" id="newCarName" placeholder="اسم ورقم السيارة (مثال: كيا سيراتو)">
@@ -63,12 +63,12 @@
                 <input type="number" id="priceMonth" placeholder="سعر الشهر">
             </div>
 
-            <label style="font-size:13px; color:#cbd5e1;">اختر عدة صور للسيارة (يمكنك اختيار أكثر من صورة دفعة واحدة):</label>
+            <label style="font-size:13px; color:#cbd5e1;">اختر صور السيارة:</label>
             <div class="file-upload-box">
                 <input type="file" id="carImagesFiles" accept="image/*" multiple onchange="convertMultipleCarImgs(this)">
                 <span id="carImgsStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار صور</span>
             </div>
-            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة السيارة بالصور الأسعار ☁️</button>
+            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة السيارة بالأسعار ☁️</button>
         </div>
 
         <div class="card">
@@ -130,14 +130,13 @@
             if (input.files && input.files.length > 0) {
                 let filesCount = input.files.length;
                 let loadedCount = 0;
-                
                 for(let i=0; i<filesCount; i++) {
                     let reader = new FileReader();
                     reader.onload = function (e) {
                         carImagesArray.push(e.target.result);
                         loadedCount++;
                         if(loadedCount === filesCount) {
-                            document.getElementById('carImgsStatus').innerText = `✅ تم اختيار ${filesCount} صور بنجاح`;
+                            document.getElementById('carImgsStatus').innerText = `✅ تم اختيار ${filesCount} صور`;
                         }
                     }
                     reader.readAsDataURL(input.files[i]);
@@ -203,6 +202,7 @@
             if(alertCount === 0) alertsList.innerHTML = 'لا توجد عقود تنتهي اليوم، الأمور مستقرة! ✅';
         });
 
+        // عرض الأسطول مع زر تعديل الأسعار
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
             list.innerHTML = '';
@@ -210,17 +210,37 @@
                 let car = doc.data();
                 let firstImg = (car.imgs && car.imgs.length > 0) ? car.imgs[0] : (car.img || "");
                 let imgTag = firstImg ? `<img src="${firstImg}" class="car-thumb">` : `🚗`;
-                let imgsCount = car.imgs ? car.imgs.length : (car.img ? 1 : 0);
 
                 list.innerHTML += `<div class="item-box">
                     <div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> 
-                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(${imgsCount} صور | يومي: ${car.pDay || 500})</span>
+                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(يومي: ${car.pDay || 500} | نص: ${car.pHalf || 7000} | شهر: ${car.pMonth || 13000})</span>
                     </div> 
-                    <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button>
+                    <div>
+                        <button class="edit-btn" onclick="editCarPrices('${doc.id}', '${car.pDay || 500}', '${car.pHalf || 7000}', '${car.pMonth || 13000}')">تعديل الأسعار ⚙️</button>
+                        <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; margin-right:5px;">حذف</button>
+                    </div>
                 </div>`;
             });
             if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات.';
         });
+
+        // دالة تعديل الأسعار الفورية
+        async function editCarPrices(id, oldDay, oldHalf, oldMonth) {
+            let newDay = prompt("ادخل سعر اليوم الجديد:", oldDay);
+            if(newDay === null) return;
+            let newHalf = prompt("ادخل سعر نصف الشهر الجديد:", oldHalf);
+            if(newHalf === null) return;
+            let newMonth = prompt("ادخل سعر الشهر الكامل الجديد:", oldMonth);
+            if(newMonth === null) return;
+
+            await db.collection("cars").doc(id).update({
+                pDay: Number(newDay),
+                pHalf: Number(newHalf),
+                pMonth: Number(newMonth)
+            });
+
+            alert('تم تحديث أسعار السيارة بنجاح!');
+        }
 
         async function addCar() {
             let name = document.getElementById('newCarName').value;
@@ -249,7 +269,7 @@
             document.getElementById('carImagesFiles').value = '';
             carImagesArray = [];
             document.getElementById('carImgsStatus').innerText = "لم يتم اختيار صور";
-            alert('تمت إضافة السيارة وصورها بنجاح!');
+            alert('تمت إضافة السيارة بأسعارها بنجاح!');
         }
 
         async function deleteCar(id) {
