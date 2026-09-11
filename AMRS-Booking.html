@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+       <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - حجز سيارة ورفع المستندات</title>
+    <title>AMRS - حجز سيارة</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -14,7 +14,7 @@
         label { display: block; font-size: 14px; color: #cbd5e1; margin: 15px 0 8px; font-weight: bold; }
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; box-sizing: border-box; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
-        .btn-whatsapp { background: #25D366; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 25px; }
+        .btn-submit { background: #10b981; color: #fff; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 25px; }
         .car-status-msg { font-size: 12px; color: #eab308; margin-top: 5px; display: block; }
         .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
     </style>
@@ -22,7 +22,7 @@
 <body>
     <div class="header">
         <h1>🚗 AMRS Car Rental</h1>
-        <p>احجز سيارتك وارفَع مستنداتك بسهولة</p>
+        <p>احجز سيارتك المفضلة بكل سهولة</p>
     </div>
 
     <div class="booking-card">
@@ -45,7 +45,6 @@
         <label>تاريخ الإرجاع:</label>
         <input type="datetime-local" id="custEndDate">
 
-        <!-- قسم رفع المستندات -->
         <label>📄 صورة رخصة القيادة أو الباسبور:</label>
         <div class="file-upload-box">
             <input type="file" id="idFile" accept="image/*" onchange="convertImg(this, 'idStatus')">
@@ -58,7 +57,7 @@
             <span id="ticketStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار ملف</span>
         </div>
 
-        <button class="btn-whatsapp" onclick="sendBooking()">إرسال طلب الحجز والمستندات عبر واتساب 💬</button>
+        <button class="btn-submit" onclick="submitBooking()">إرسال طلب الحجز للشركة 🚀</button>
     </div>
 
     <script>
@@ -73,10 +72,9 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        let carsData = [];
-        let contractsData = [];
         let idBase64 = "";
         let ticketBase64 = "";
+        let contractsData = [];
 
         async function loadData() {
             const carSelect = document.getElementById('custCar');
@@ -85,7 +83,6 @@
             const carsSnapshot = await db.collection("cars").get();
             carsSnapshot.forEach(doc => {
                 let car = doc.data();
-                carsData.push(car);
                 carSelect.innerHTML += `<option value="${car.name}" data-img="${car.img || ''}">${car.name}</option>`;
             });
 
@@ -93,7 +90,6 @@
             contractsSnapshot.forEach(doc => contractsData.push(doc.data()));
         }
 
-        // تحويل الصورة لـ Text عشان تقدر تسافر عبر الواتساب أو تخزن بسهولة
         function convertImg(input, statusId) {
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
@@ -114,50 +110,47 @@
             let imgBox = document.getElementById('carPreviewImg');
             let msgBox = document.getElementById('carStatusMsg');
 
-            if (imgUrl) {
-                imgBox.src = imgUrl;
-                imgBox.style.display = 'block';
-            } else {
-                imgBox.style.display = 'none';
-            }
+            if (imgUrl) { imgBox.src = imgUrl; imgBox.style.display = 'block'; }
+            else { imgBox.style.display = 'none'; }
 
             let carName = select.value;
             msgBox.innerHTML = "";
             let activeContract = contractsData.find(c => c.carName === carName);
             if (activeContract) {
-                let endDate = new Date(activeContract.endDate).toLocaleString('ar-EG');
                 msgBox.style.color = "#eab308";
-                msgBox.innerHTML = `⚠️ مؤجرة حالياً، متاحة بداية من: ${endDate}`;
+                msgBox.innerHTML = `⚠️ مؤجرة حالياً حتى: ${new Date(activeContract.endDate).toLocaleString('ar-EG')}`;
             } else if(carName) {
                 msgBox.style.color = "#10b981";
-                msgBox.innerHTML = `✅ السيارة متاحة للتسليم الفوري.`;
+                msgBox.innerHTML = `✅ السيارة متاحة.`;
             }
         }
 
-        function sendBooking() {
-            const adminWhatsApp = "201024870700"; // حط رقمك هنا
+        async function submitBooking() {
             const name = document.getElementById('custName').value;
             const phone = document.getElementById('custPhone').value;
             const car = document.getElementById('custCar').value;
             const startDate = document.getElementById('custStartDate').value;
             const endDate = document.getElementById('custEndDate').value;
 
-            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء البيانات الأساسية!");
+            if (!name || !phone || !car || !startDate || !endDate) return alert("برجاء ملء جميع البيانات الأساسية!");
 
-            let msg = `*طلب حجز جديد مع المستندات* 🚗\n` +
-                      `👤 الاسم: ${name}\n` +
-                      `📞 الموبايل: ${phone}\n` +
-                      `🚙 السيارة: ${car}\n` +
-                      `📅 من: ${startDate.replace('T', ' ')}\n` +
-                      `📅 إلى: ${endDate.replace('T', ' ')}\n`;
+            // رفع الطلب للداشبورد مباشرة
+            await db.collection("pendingBookings").add({
+                name: name,
+                phone: phone,
+                car: car,
+                startDate: startDate.replace('T', ' '),
+                endDate: endDate.replace('T', ' '),
+                idImg: idBase64 || "",
+                ticketImg: ticketBase64 || "",
+                createdAt: new Date()
+            });
 
-            if(idBase64) msg += `\n📄 تم إرفاق صورة الرخصة/الباسبور`;
-            if(ticketBase64) msg += `\n✈️ تم إرفاق تذكرة السفر`;
-
-            window.open(`https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(msg)}`, '_blank');
+            alert('تم إرسال طلب الحجز بنجاح! سيتم مراجعته والتواصل معك قريباً.');
+            location.reload();
         }
 
         loadData();
     </script>
 </body>
-</html>
+</html>  
