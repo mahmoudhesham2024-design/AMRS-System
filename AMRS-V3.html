@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - الإدارة الشاملة</title>
+    <title>AMRS - لوحة الإدارة وقبول الحجوزات</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -14,10 +14,13 @@
         input, select { width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 8px; margin-bottom: 12px; box-sizing: border-box; }
         .btn { background: #38bdf8; color: #0f172a; padding: 12px; width: 100%; border: none; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 16px; transition: 0.2s; }
         .btn:hover { background: #0ea5e9; }
-        .item-box { background: #334155; padding: 12px; margin-top: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .item-box { background: #334155; padding: 12px; margin-top: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .car-thumb { width: 60px; height: 40px; object-fit: cover; border-radius: 4px; margin-left: 10px; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; }
         .badge { background: #0ea5e9; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; margin-left: 5px; }
+        .accept-btn { background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .reject-btn { background: #ef4444; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: #1e293b; padding: 30px; border-radius: 12px; width: 300px; text-align: center; border-top: 5px solid #38bdf8; }
     </style>
@@ -35,34 +38,31 @@
     </div>
 
     <div class="container" id="mainContent" style="display:none;">
-        <h1>🚗 AMRS (لوحة التحكم الاحترافية)</h1>
+        <h1>🚗 AMRS (لوحة التحكم وقبول الحجوزات)</h1>
         
-        <!-- قسم الأسطول مع رفع الصور من الاستوديو -->
+        <!-- طلبات العملاء في انتظار الموافقة -->
+        <div class="card" style="border-color: #f59e0b;">
+            <h2>⏳ طلبات الحجز الواردة (تنتظر موافقتك)</h2>
+            <div id="pendingBookingsList">جاري التحميل...</div>
+        </div>
+
+        <!-- إدارة أسطول السيارات -->
         <div class="card" style="border-color: #10b981;">
-            <h2>🚙 إدارة أسطول السيارات</h2>
+            <h2>🚙 أسطول السيارات المتاح</h2>
             <div id="carsList">جاري التحميل...</div>
             <hr style="border-color: #334155; margin: 15px 0;">
-            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة (مثال: كيا سيراتو - أى 1234)">
-            
-            <label style="font-size:13px; color:#cbd5e1; display:block; margin-bottom:5px;">اختر صورة السيارة من الاستوديو:</label>
+            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة (مثال: كيا سيراتو)">
             <div class="file-upload-box">
                 <input type="file" id="carImageFile" accept="image/*" onchange="convertCarImg(this)">
-                <span id="carImgStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار صورة</span>
+                <span id="carImgStatus" style="font-size: 11px; color: #38bdf8;">اختر صورة السيارة من الاستوديو</span>
             </div>
-
             <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة سيارة للأسطول ☁️</button>
         </div>
 
-        <!-- قسم العقود والأرباح -->
+        <!-- العقود النشطة -->
         <div class="card">
-            <h2>📝 تسجيل عقد إيجار وحساب الأرباح</h2>
-            <input type="text" id="clientName" placeholder="اسم العميل">
-            <input type="tel" id="clientPhone" placeholder="رقم تليفون العميل">
-            <select id="carSelect"><option value="">-- اختار السيارة --</option></select>
-            <input type="number" id="rentalPrice" placeholder="قيمة الإيجار (جنيه)">
-            <label style="font-size:12px; color:#94a3b8;">تاريخ ووقت انتهاء العقد:</label>
-            <input type="datetime-local" id="endDate">
-            <button class="btn" onclick="addContract()">تأكيد العقد وحجز السيارة 🚀</button>
+            <h2>📝 العقود النشطة حالياً</h2>
+            <div id="contractsList">جاري تحميل العقود...</div>
         </div>
 
         <!-- أرشيف الدخل -->
@@ -75,15 +75,12 @@
 
     <script>
         const ADMIN_PIN = "1234";
-
         function checkLogin() {
             let val = document.getElementById('adminPass').value;
             if(val === ADMIN_PIN) {
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-            } else {
-                alert('كلمة المرور غير صحيحة!');
-            }
+            } else { alert('كلمة المرور غير صحيحة!'); }
         }
 
         const firebaseConfig = {
@@ -98,30 +95,76 @@
         const db = firebase.firestore();
 
         let carImageBase64 = "";
-
         function convertCarImg(input) {
             if (input.files && input.files[0]) {
                 let reader = new FileReader();
                 reader.onload = function (e) {
                     carImageBase64 = e.target.result;
-                    document.getElementById('carImgStatus').innerText = "✅ تم اختيار الصورة بنجاح";
-                    document.getElementById('carImgStatus').style.color = "#10b981";
+                    document.getElementById('carImgStatus').innerText = "✅ تم اختيار الصورة";
                 }
                 reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // جلب طلبات الحجز المعلقة لايف
+        db.collection("pendingBookings").onSnapshot((snapshot) => {
+            const list = document.getElementById('pendingBookingsList');
+            list.innerHTML = '';
+            snapshot.forEach(doc => {
+                let b = doc.data();
+                let idBtn = b.idImg ? `<a href="${b.idImg}" target="_blank" class="doc-btn">📄 الرخصة</a>` : ``;
+                let ticketBtn = b.ticketImg ? `<a href="${b.ticketImg}" target="_blank" class="doc-btn" style="background:#0284c7;">✈️ التذكرة</a>` : ``;
+                
+                list.innerHTML += `<div class="item-box">
+                    <div>
+                        <b>👤 ${b.name}</b> (${b.phone})<br>
+                        <span style="font-size:12px; color:#38bdf8;">🚗 العربية: ${b.car}</span><br>
+                        <span style="font-size:11px; color:#94a3b8;">📅 من: ${b.startDate} إلى: ${b.endDate}</span>
+                    </div>
+                    <div>
+                        ${idBtn} ${ticketBtn}
+                        <button class="accept-btn" onclick="acceptBooking('${doc.id}', '${b.name}', '${b.phone}', '${b.car}', '${b.endDate}')">قبول ✓</button>
+                        <button class="reject-btn" onclick="rejectBooking('${doc.id}')">رفض ✕</button>
+                    </div>
+                </div>`;
+            });
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد طلبات حجز جديدة تنتظر الموافقة.';
+        });
+
+        // قبول الحجز وتحويله لعقد نشط
+        async function acceptBooking(id, name, phone, car, endDate) {
+            let price = prompt(`ادخل قيمة الإيجار المتفق عليها للسيارة (${car}) بالجنيه:`);
+            if(!price) return;
+
+            // 1. إضافة عقد نشط
+            await db.collection("contracts").add({
+                clientName: name, clientPhone: phone, carName: car, endDate: endDate, status: 'نشط'
+            });
+
+            // 2. تسجيل الدخل في الأرشيف
+            await db.collection("income").add({
+                carName: car, amount: Number(price), client: name, date: new Date().toLocaleDateString('ar-EG')
+            });
+
+            // 3. حذف الطلب من الطلبات المعلقة
+            await db.collection("pendingBookings").doc(id).delete();
+            alert('تم قبول الحجز بنجاح، وتحويله لعقد نشط وحساب الأرباح!');
+        }
+
+        async function rejectBooking(id) {
+            if(confirm('متأكد من رفض هذا الطلب؟')) {
+                await db.collection("pendingBookings").doc(id).delete();
             }
         }
 
         // جلب السيارات لايف
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
-            const select = document.getElementById('carSelect');
-            list.innerHTML = ''; select.innerHTML = '<option value="">-- اختار السيارة --</option>';
-            
+            list.innerHTML = '';
             snapshot.forEach(doc => {
                 let car = doc.data();
                 let imgTag = car.img ? `<img src="${car.img}" class="car-thumb">` : `<span>🚗</span>`;
                 list.innerHTML += `<div class="item-box"><div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b></div> <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button></div>`;
-                select.innerHTML += `<option value="${car.name}">${car.name}</option>`;
             });
             if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات مسجلة.';
         });
@@ -129,61 +172,36 @@
         async function addCar() {
             let name = document.getElementById('newCarName').value;
             if(!name) return alert('اكتب اسم العربية!');
-            
-            await db.collection("cars").add({ 
-                name: name, 
-                img: carImageBase64 || "", 
-                createdAt: new Date() 
-            });
-
+            await db.collection("cars").add({ name: name, img: carImageBase64 || "", createdAt: new Date() });
             document.getElementById('newCarName').value = '';
-            document.getElementById('carImageFile').value = '';
-            carImageBase64 = "";
-            document.getElementById('carImgStatus').innerText = "لم يتم اختيار صورة";
-            document.getElementById('carImgStatus').style.color = "#38bdf8";
-            alert('تمت إضافة السيارة وصورتها بنجاح للأسطول!');
+            alert('تمت إضافة السيارة بنجاح!');
         }
 
         async function deleteCar(id) {
-            if(confirm('متأكد من حذف هذه السيارة؟')) {
-                await db.collection("cars").doc(id).delete();
-            }
+            if(confirm('متأكد من حذف السيارة؟')) await db.collection("cars").doc(id).delete();
         }
 
-        async function addContract() {
-            let name = document.getElementById('clientName').value;
-            let phone = document.getElementById('clientPhone').value;
-            let car = document.getElementById('carSelect').value;
-            let price = Number(document.getElementById('rentalPrice').value);
-            let endDate = document.getElementById('endDate').value;
-
-            if(!name || !car || !endDate || !price) return alert('برجاء ملء بيانات العقد والأرباح!');
-
-            await db.collection("contracts").add({
-                clientName: name, clientPhone: phone, carName: car, endDate: endDate, status: 'نشط'
-            });
-
-            await db.collection("income").add({
-                carName: car, amount: price, client: name, date: new Date().toLocaleDateString('ar-EG')
-            });
-
-            alert('تم تسجيل العقد وحساب الدخل!');
-            document.getElementById('clientName').value = '';
-            document.getElementById('clientPhone').value = '';
-            document.getElementById('rentalPrice').value = '';
-        }
-
-        db.collection("income").onSnapshot((snapshot) => {
-            const list = document.getElementById('incomeList');
+        // العقود النشطة
+        db.collection("contracts").onSnapshot((snapshot) => {
+            const list = document.getElementById('contractsList');
             list.innerHTML = '';
-            let total = 0;
+            snapshot.forEach(doc => {
+                let c = doc.data();
+                list.innerHTML += `<div class="item-box"><span>🚗 ${c.carName} - العميل: ${c.clientName}</span> <span class="badge" style="background:#f59e0b;">مؤجرة حتى: ${c.endDate}</span></div>`;
+            });
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة حالياً.';
+        });
+
+        // أرشيف الدخل
+        db.collection("income").onSnapshot((snapshot) => {
+            let list = document.getElementById('incomeList'), total = 0;
+            list.innerHTML = '';
             snapshot.forEach(doc => {
                 let item = doc.data();
                 total += Number(item.amount);
                 list.innerHTML += `<div class="item-box"><span>🚗 ${item.carName} (عميل: ${item.client})</span> <span class="badge">+${item.amount} ج.م</span></div>`;
             });
             document.getElementById('totalIncome').innerText = total;
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد أرباح مسجلة.';
         });
     </script>
 </body>
