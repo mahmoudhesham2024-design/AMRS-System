@@ -23,6 +23,7 @@
         .accept-btn { background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .reject-btn { background: #ef4444; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .edit-btn { background: #f59e0b; color: #0f172a; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .delete-btn { background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .report-box { background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; border-right: 4px solid #10b981; }
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: #1e293b; padding: 30px; border-radius: 12px; width: 300px; text-align: center; border-top: 5px solid #38bdf8; }
@@ -47,8 +48,22 @@
         </div>
 
         <div class="card" style="border-color: #f59e0b;">
-            <h2>⏳ طلبات الحجز الواردة</h2>
+            <h2>⏳ طلبات الحجز الواردة (عبر التطبيق)</h2>
             <div id="pendingBookingsList">جاري التحميل...</div>
+        </div>
+
+        <!-- إضافة حجز مانيوال (يدوي) من الإدارة -->
+        <div class="card" style="border-color: #38bdf8;">
+            <h2>📝 إضافة حجز مانيوال (يدوي) جديد</h2>
+            <input type="text" id="manualName" placeholder="اسم العميل الثلاثي">
+            <input type="tel" id="manualPhone" placeholder="رقم الموبايل">
+            <select id="manualCarSelect">
+                <option value="">-- اختر السيارة المتاحة --</option>
+            </select>
+            <label style="font-size:12px; color:#cbd5e1;">تاريخ ونهاية العقد:</label>
+            <input type="date" id="manualEndDate">
+            <input type="number" id="manualAmount" placeholder="قيمة الإيجار المتفق عليها (جنيه)">
+            <button class="btn" style="background:#38bdf8; color:#0f172a;" onclick="addManualBooking()">إضافة العقد والحجز المانيوال ✍️</button>
         </div>
 
         <div class="card" style="border-color: #10b981;">
@@ -78,7 +93,7 @@
         </div>
 
         <div class="card" style="border-color: #f97316;">
-            <h2>🛠️ أرشيف المصروفات (حسب السيارة)</h2>
+            <h2>🛠️ أرشيف المصروفات (تعديل أو حذف)</h2>
             <select id="expenseCarSelect">
                 <option value="مصروف عام للشركة">-- مصروف عام للشركة (ليس لسيارة معينة) --</option>
             </select>
@@ -149,15 +164,18 @@
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
             const expSelect = document.getElementById('expenseCarSelect');
+            const manualCarSelect = document.getElementById('manualCarSelect');
+            
             list.innerHTML = '';
             expSelect.innerHTML = '<option value="مصروف عام للشركة">-- مصروف عام للشركة (ليس لسيارة معينة) --</option>';
+            manualCarSelect.innerHTML = '<option value="">-- اختر السيارة المتاحة --</option>';
             globalCarsList = [];
 
             snapshot.forEach(doc => {
                 let car = doc.data();
                 globalCarsList.push({ id: doc.id, ...car });
-
                 expSelect.innerHTML += `<option value="${car.name}">${car.name}</option>`;
+                manualCarSelect.innerHTML += `<option value="${car.name}">${car.name}</option>`;
 
                 let firstImg = (car.imgs && car.imgs.length > 0) ? car.imgs[0] : (car.img || "");
                 let imgTag = firstImg ? `<img src="${firstImg}" class="car-thumb">` : `🚗`;
@@ -175,6 +193,45 @@
             if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات مسجلة.';
             calculateFinancialReports();
         });
+
+        // دالة إضافة حجز مانيوال (يدوي)
+        async function addManualBooking() {
+            let name = document.getElementById('manualName').value;
+            let phone = document.getElementById('manualPhone').value;
+            let car = document.getElementById('manualCarSelect').value;
+            let endDate = document.getElementById('manualEndDate').value;
+            let amount = Number(document.getElementById('manualAmount').value);
+
+            if(!name || !phone || !car || !endDate || !amount) {
+                return alert('برجاء استكمال جميع بيانات الحجز اليدوي!');
+            }
+
+            // إضافة العقد مباشرة للعقود النشطة
+            await db.collection("contracts").add({ 
+                clientName: name, 
+                clientPhone: phone, 
+                carName: car, 
+                endDate: endDate, 
+                amount: amount, 
+                rating: "3", 
+                status: 'نشط' 
+            });
+
+            // تسجيل الدخل أوتوماتيك باسم السيارة
+            await db.collection("income").add({ 
+                carName: car, 
+                amount: amount, 
+                client: name, 
+                date: new Date().toLocaleDateString('ar-EG') 
+            });
+
+            alert('✅ تمت إضافة الحجز اليدوي وتفعيل العقد وتسجيل الأرباح بنجاح!');
+            document.getElementById('manualName').value = '';
+            document.getElementById('manualPhone').value = '';
+            document.getElementById('manualCarSelect').value = '';
+            document.getElementById('manualEndDate').value = '';
+            document.getElementById('manualAmount').value = '';
+        }
 
         db.collection("pendingBookings").onSnapshot((snapshot) => {
             const list = document.getElementById('pendingBookingsList');
@@ -271,14 +328,42 @@
             alert('تم تسجيل المصروف بنجاح.');
         }
 
+        async function deleteExpense(id) {
+            if(confirm('هل متأكد من حذف هذا المصروف؟')) {
+                await db.collection("expenses").doc(id).delete();
+                alert('تم حذف المصروف وتحديث الحسابات بنجاح.');
+            }
+        }
+
+        async function editExpense(id, oldDesc, oldAmount, oldCar) {
+            let newDesc = prompt("تعديل بيان المصروف:", oldDesc);
+            if(newDesc === null) return;
+            let newAmount = prompt("تعديل مبلغ المصروف (جنيه):", oldAmount);
+            if(newAmount === null || isNaN(newAmount)) return;
+
+            await db.collection("expenses").doc(id).update({
+                desc: newDesc,
+                amount: Number(newAmount)
+            });
+            alert('تم تحديث المصروف بنجاح!');
+        }
+
         db.collection("expenses").onSnapshot((snapshot) => {
             globalExpensesList = [];
             const list = document.getElementById('expensesList');
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let e = doc.data();
-                globalExpensesList.push(e);
-                list.innerHTML += `<div class="item-box"><span>🛠️ [<b>${e.carName || 'عام'}</b>] ${e.desc}</span> <span class="badge" style="background:#f97316;">-${e.amount} ج.م</span></div>`;
+                let expId = doc.id;
+                globalExpensesList.push({ id: expId, ...e });
+
+                list.innerHTML += `<div class="item-box">
+                    <span>🛠️ [<b>${e.carName || 'عام'}</b>] ${e.desc} - <b style="color:#f97316;">${e.amount} ج.م</b></span> 
+                    <div>
+                        <button class="edit-btn" onclick="editExpense('${expId}', '${e.desc}', ${e.amount}, '${e.carName}')" style="padding:4px 8px; font-size:12px;">تعديل ⚙️</button>
+                        <button class="delete-btn" onclick="deleteExpense('${expId}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">حذف ✕</button>
+                    </div>
+                </div>`;
             });
             if(list.innerHTML === '') list.innerHTML = '<span style="font-size:12px; color:#94a3b8;">لا توجد مصروفات مسجلة.</span>';
             calculateFinancialReports();
