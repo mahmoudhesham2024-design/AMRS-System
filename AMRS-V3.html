@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRS - لوحة الإدارة وقبول الحجوزات</title>
+    <title>AMRS - لوحة الإدارة الذكية الشاملة</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
@@ -18,7 +18,8 @@
         .car-thumb { width: 60px; height: 40px; object-fit: cover; border-radius: 4px; margin-left: 10px; }
         .file-upload-box { background: #0f172a; border: 2px dashed #334155; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; }
         .badge { background: #0ea5e9; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; margin-left: 5px; }
+        .alert-box { background: #7f1d1d; border: 1px solid #ef4444; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; color: #fca5a5; }
+        .doc-btn { background: #8b5cf6; color: white; padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block; }
         .accept-btn { background: #10b981; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .reject-btn { background: #ef4444; color: white; padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; }
@@ -31,53 +32,80 @@
     <div id="loginOverlay">
         <div class="login-box">
             <h2>🔐 دخول الإدارة</h2>
-            <p style="font-size: 13px; color: #94a3b8;">ادخل كلمة مرور الأدمن</p>
             <input type="password" id="adminPass" placeholder="كلمة المرور (1234)">
             <button class="btn" onclick="checkLogin()">دخول للسيستم</button>
         </div>
     </div>
 
     <div class="container" id="mainContent" style="display:none;">
-        <h1>🚗 AMRS (لوحة التحكم وقبول الحجوزات)</h1>
+        <h1>🚗 AMRS (لوحة التحكم الذكية والشاملة)</h1>
         
-        <!-- طلبات العملاء في انتظار الموافقة -->
+        <!-- تنبيهات انتهاء العقود -->
+        <div class="card" style="border-color: #ef4444;" id="alertsCard">
+            <h2>🚨 تنبيهات انتهاء العقود اليوم</h2>
+            <div id="alertsList">جاري فحص العقود...</div>
+        </div>
+
+        <!-- طلبات العملاء الواردة -->
         <div class="card" style="border-color: #f59e0b;">
-            <h2>⏳ طلبات الحجز الواردة (تنتظر موافقتك)</h2>
+            <h2>⏳ طلبات الحجز الواردة</h2>
             <div id="pendingBookingsList">جاري التحميل...</div>
         </div>
 
-        <!-- إدارة أسطول السيارات -->
+        <!-- إدارة أسطول السيارات والصيانة -->
         <div class="card" style="border-color: #10b981;">
-            <h2>🚙 أسطول السيارات المتاح</h2>
+            <h2>🚙 أسطول السيارات والصيانة</h2>
             <div id="carsList">جاري التحميل...</div>
             <hr style="border-color: #334155; margin: 15px 0;">
-            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة (مثال: كيا سيراتو)">
+            <input type="text" id="newCarName" placeholder="اسم ورقم السيارة">
+            <input type="number" id="carKm" placeholder="عداد الكيلومترات الحالي">
             <div class="file-upload-box">
                 <input type="file" id="carImageFile" accept="image/*" onchange="convertCarImg(this)">
-                <span id="carImgStatus" style="font-size: 11px; color: #38bdf8;">اختر صورة السيارة من الاستوديو</span>
+                <span id="carImgStatus" style="font-size: 11px; color: #38bdf8;">صورة السيارة من الاستوديو</span>
             </div>
             <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة سيارة للأسطول ☁️</button>
         </div>
 
         <!-- العقود النشطة -->
         <div class="card">
-            <h2>📝 العقود النشطة حالياً</h2>
-            <div id="contractsList">جاري تحميل العقود...</div>
+            <h2>📝 العقود النشطة</h2>
+            <div id="contractsList">جاري التحميل...</div>
         </div>
 
-        <!-- أرشيف الدخل -->
+        <!-- قسم المخالفات المرتبطة بالعملاء -->
+        <div class="card" style="border-color: #f59e0b;">
+            <h2>⚠️ تسجيل مخالفة أو غرامة على عميل</h2>
+            <input type="text" id="violationCar" placeholder="اسم ورقم السيارة المخالفة">
+            <input type="text" id="violationClient" placeholder="اسم العميل المستأجر (أو المخالف)">
+            <input type="text" id="violationDesc" placeholder="تفاصيل المخالفة (سرعة، ركن خاطئ...)">
+            <input type="number" id="violationCost" placeholder="قيمة الغرامة (جنيه)">
+            <button class="btn" style="background:#f59e0b; color:#0f172a;" onclick="addViolation()">إثبات المخالفة على العميل 🚨</button>
+            <div id="violationsList" style="margin-top: 15px;">جاري تحميل المخالفات...</div>
+        </div>
+
+        <!-- أرشيف المصروفات -->
+        <div class="card" style="border-color: #f97316;">
+            <h2>🛠️ أرشيف المصروفات (صيانة، غسيل...)</h2>
+            <div id="expensesList">جاري التحميل...</div>
+            <input type="text" id="expDesc" placeholder="بيان المصروف (غسيل، تغيير زيت...)">
+            <input type="number" id="expAmount" placeholder="المبلغ (جنيه)">
+            <button class="btn" style="background:#f97316; color:#fff;" onclick="addExpense()">تسجيل مصروف جديد 💸</button>
+            <h3 style="margin-top:15px; color:#f97316;">إجمالي المصروفات: <span id="totalExpenses">0</span> جنيه</h3>
+        </div>
+
+        <!-- أرشيف الدخل وصافي الربح -->
         <div class="card" style="border-color: #ec4899;">
-            <h2>💰 أرشيف الدخل والأرباح</h2>
+            <h2>💰 صافي الأرباح والحسابات</h2>
             <div id="incomeList">جاري التحميل...</div>
             <h3 style="margin-top:15px; color:#10b981;">إجمالي الدخل: <span id="totalIncome">0</span> جنيه</h3>
+            <h2 style="margin-top:10px; color:#38bdf8; border-top: 1px dashed #334155; padding-top: 10px;">صافي الربح الحقيقي: <span id="netProfit">0</span> جنيه</h2>
         </div>
     </div>
 
     <script>
         const ADMIN_PIN = "1234";
         function checkLogin() {
-            let val = document.getElementById('adminPass').value;
-            if(val === ADMIN_PIN) {
+            if(document.getElementById('adminPass').value === ADMIN_PIN) {
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
             } else { alert('كلمة المرور غير صحيحة!'); }
@@ -106,7 +134,7 @@
             }
         }
 
-        // جلب طلبات الحجز المعلقة لايف
+        // جلب طلبات الحجز مع تقييم العملاء
         db.collection("pendingBookings").onSnapshot((snapshot) => {
             const list = document.getElementById('pendingBookingsList');
             list.innerHTML = '';
@@ -128,80 +156,153 @@
                     </div>
                 </div>`;
             });
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد طلبات حجز جديدة تنتظر الموافقة.';
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد طلبات حجز جديدة.';
         });
 
-        // قبول الحجز وتحويله لعقد نشط
         async function acceptBooking(id, name, phone, car, endDate) {
-            let price = prompt(`ادخل قيمة الإيجار المتفق عليها للسيارة (${car}) بالجنيه:`);
+            let price = prompt(`ادخل قيمة الإيجار المتفق عليها (${car}):`);
             if(!price) return;
+            let rating = prompt(`قيم التزام العميل (من 1 إلى 3 نجوم):`, "3");
 
-            // 1. إضافة عقد نشط
-            await db.collection("contracts").add({
-                clientName: name, clientPhone: phone, carName: car, endDate: endDate, status: 'نشط'
-            });
-
-            // 2. تسجيل الدخل في الأرشيف
-            await db.collection("income").add({
-                carName: car, amount: Number(price), client: name, date: new Date().toLocaleDateString('ar-EG')
-            });
-
-            // 3. حذف الطلب من الطلبات المعلقة
+            await db.collection("contracts").add({ clientName: name, clientPhone: phone, carName: car, endDate: endDate, rating: rating || "3", status: 'نشط' });
+            await db.collection("income").add({ carName: car, amount: Number(price), client: name, date: new Date().toLocaleDateString('ar-EG') });
             await db.collection("pendingBookings").doc(id).delete();
-            alert('تم قبول الحجز بنجاح، وتحويله لعقد نشط وحساب الأرباح!');
+            alert('تم قبول الحجز وتوثيق تقييم العميل!');
         }
 
         async function rejectBooking(id) {
-            if(confirm('متأكد من رفض هذا الطلب؟')) {
-                await db.collection("pendingBookings").doc(id).delete();
-            }
+            if(confirm('متأكد من الرفض؟')) await db.collection("pendingBookings").doc(id).delete();
         }
 
-        // جلب السيارات لايف
+        // تنبيهات انتهاء العقود اليوم
+        db.collection("contracts").onSnapshot((snapshot) => {
+            const list = document.getElementById('contractsList');
+            const alertsList = document.getElementById('alertsList');
+            list.innerHTML = ''; alertsList.innerHTML = '';
+            let todayStr = new Date().toISOString().split('T')[0];
+            let alertCount = 0;
+
+            snapshot.forEach(doc => {
+                let c = doc.data();
+                list.innerHTML += `<div class="item-box"><span>🚗 ${c.carName} - العميل: ${c.clientName} (تقييم: ${c.rating}⭐)</span> <span class="badge" style="background:#f59e0b;">مؤجرة حتى: ${c.endDate}</span></div>`;
+                
+                if(c.endDate && c.endDate.startsWith(todayStr)) {
+                    alertCount++;
+                    alertsList.innerHTML += `<div class="alert-box">⚠️ تحذير: عقد السيارة <b>${c.carName}</b> للعميل <b>${c.clientName}</b> ينتهي اليوم! المتابعة مطلوبة.</div>`;
+                }
+            });
+
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة.';
+            if(alertCount === 0) alertsList.innerHTML = 'لا توجد عقود تنتهي اليوم، الأمور مستقرة! ✅';
+        });
+
+        // الأسطول والعدادات والصيانة
         db.collection("cars").onSnapshot((snapshot) => {
             const list = document.getElementById('carsList');
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let car = doc.data();
                 let imgTag = car.img ? `<img src="${car.img}" class="car-thumb">` : `<span>🚗</span>`;
-                list.innerHTML += `<div class="item-box"><div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b></div> <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button></div>`;
+                list.innerHTML += `<div class="item-box"><div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> <span style="font-size:12px; color:#38bdf8; margin-right:10px;">(العداد: ${car.km || 0} كم)</span></div> <button onclick="deleteCar('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer;">حذف</button></div>`;
             });
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات مسجلة.';
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد سيارات.';
         });
 
         async function addCar() {
             let name = document.getElementById('newCarName').value;
+            let km = document.getElementById('carKm').value || 0;
             if(!name) return alert('اكتب اسم العربية!');
-            await db.collection("cars").add({ name: name, img: carImageBase64 || "", createdAt: new Date() });
+            await db.collection("cars").add({ name: name, km: Number(km), img: carImageBase64 || "", createdAt: new Date() });
             document.getElementById('newCarName').value = '';
-            alert('تمت إضافة السيارة بنجاح!');
+            document.getElementById('carKm').value = '';
+            alert('تمت إضافة السيارة والعداد بنجاح!');
         }
 
         async function deleteCar(id) {
-            if(confirm('متأكد من حذف السيارة؟')) await db.collection("cars").doc(id).delete();
+            if(confirm('متأكد من الحذف؟')) await db.collection("cars").doc(id).delete();
         }
 
-        // العقود النشطة
-        db.collection("contracts").onSnapshot((snapshot) => {
-            const list = document.getElementById('contractsList');
+        // المخالفات المرتبطة بالعملاء
+        async function addViolation() {
+            let car = document.getElementById('violationCar').value;
+            let client = document.getElementById('violationClient').value;
+            let desc = document.getElementById('violationDesc').value;
+            let cost = Number(document.getElementById('violationCost').value);
+
+            if(!car || !desc || !cost) return alert('برجاء استكمال بيانات المخالفة!');
+
+            await db.collection("violations").add({ 
+                car: car, 
+                client: client || "غير محدد", 
+                desc: desc, 
+                cost: cost, 
+                date: new Date().toLocaleDateString('ar-EG') 
+            });
+
+            alert('تم تسجيل المخالفة والغرامة على العميل بنجاح.');
+            document.getElementById('violationCar').value = '';
+            document.getElementById('violationClient').value = '';
+            document.getElementById('violationDesc').value = '';
+            document.getElementById('violationCost').value = '';
+        }
+
+        db.collection("violations").onSnapshot((snapshot) => {
+            const list = document.getElementById('violationsList');
+            if(!list) return;
             list.innerHTML = '';
             snapshot.forEach(doc => {
-                let c = doc.data();
-                list.innerHTML += `<div class="item-box"><span>🚗 ${c.carName} - العميل: ${c.clientName}</span> <span class="badge" style="background:#f59e0b;">مؤجرة حتى: ${c.endDate}</span></div>`;
+                let v = doc.data();
+                list.innerHTML += `<div class="item-box" style="background:#262626;">
+                    <span>⚠️ <b>${v.car}</b> (العميل: ${v.client})<br><small style="color:#94a3b8;">${v.desc}</small></span> 
+                    <span class="badge" style="background:#ef4444;">-${v.cost} ج.م</span>
+                </div>`;
             });
-            if(list.innerHTML === '') list.innerHTML = 'لا توجد عقود نشطة حالياً.';
+            if(list.innerHTML === '') list.innerHTML = '<span style="font-size:12px; color:#94a3b8;">لا توجد مخالفات مسجلة.</span>';
         });
 
-        // أرشيف الدخل
+        // المصروفات
+        async function addExpense() {
+            let desc = document.getElementById('expDesc').value;
+            let amount = Number(document.getElementById('expAmount').value);
+            if(!desc || !amount) return alert('برجاء إدخال تفاصيل ومبلغ المصروف!');
+            await db.collection("expenses").add({ desc, amount, date: new Date().toLocaleDateString('ar-EG') });
+            document.getElementById('expDesc').value = '';
+            document.getElementById('expAmount').value = '';
+            alert('تم تسجيل المصروف بنجاح.');
+        }
+
+        let totalInc = 0, totalExp = 0;
+        function updateProfit() {
+            let net = totalInc - totalExp;
+            let netEl = document.getElementById('netProfit');
+            netEl.innerText = net;
+            netEl.style.color = net >= 0 ? "#38bdf8" : "#ef4444";
+        }
+
+        db.collection("expenses").onSnapshot((snapshot) => {
+            let list = document.getElementById('expensesList');
+            list.innerHTML = ''; totalExp = 0;
+            snapshot.forEach(doc => {
+                let e = doc.data();
+                totalExp += Number(e.amount);
+                list.innerHTML += `<div class="item-box"><span>🛠️ ${e.desc}</span> <span class="badge" style="background:#f97316;">-${e.amount} ج.م</span></div>`;
+            });
+            document.getElementById('totalExpenses').innerText = totalExp;
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد مصروفات مسجلة.';
+            updateProfit();
+        });
+
         db.collection("income").onSnapshot((snapshot) => {
-            let list = document.getElementById('incomeList'), total = 0;
-            list.innerHTML = '';
+            let list = document.getElementById('incomeList');
+            list.innerHTML = ''; totalInc = 0;
             snapshot.forEach(doc => {
                 let item = doc.data();
-                total += Number(item.amount);
+                totalInc += Number(item.amount);
                 list.innerHTML += `<div class="item-box"><span>🚗 ${item.carName} (عميل: ${item.client})</span> <span class="badge">+${item.amount} ج.م</span></div>`;
             });
-            document.getElementById('totalIncome').innerText = total;
+            document.getElementById('totalIncome').innerText = totalInc;
+            if(list.innerHTML === '') list.innerHTML = 'لا توجد أرباح مسجلة.';
+            updateProfit();
         });
     </script>
 </body>
