@@ -79,12 +79,12 @@
                 <input type="number" id="priceMonth" placeholder="سعر الشهر">
             </div>
 
-            <label style="font-size:13px; color:#cbd5e1;">اختر صور السيارة:</label>
+            <label style="font-size:13px; color:#cbd5e1;">اختر أي عدد من صور السيارة (يقبل أي كمية بسلاسة):</label>
             <div class="file-upload-box">
                 <input type="file" id="carImagesFiles" accept="image/*" multiple onchange="convertMultipleCarImgs(this)">
                 <span id="carImgsStatus" style="font-size: 11px; color: #38bdf8;">لم يتم اختيار صور</span>
             </div>
-            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة السيارة بالأسعار ☁️</button>
+            <button class="btn" style="background:#10b981; color:#fff;" onclick="addCar()">إضافة السيارة بالصور والأسعار ☁️</button>
         </div>
 
         <div class="card">
@@ -155,21 +155,54 @@
         let globalIncomeList = [];
         let globalExpensesList = [];
 
+        // دالة لضغط ومعالجة الصور مهما كان عددها وحجمها لضمان حفظها بسلاسة
         function convertMultipleCarImgs(input) {
             carImagesArray = [];
             if (input.files && input.files.length > 0) {
                 let filesCount = input.files.length;
                 let loadedCount = 0;
+                document.getElementById('carImgsStatus').innerText = `⏳ جاري معالجة ${filesCount} صور...`;
+
                 for(let i=0; i<filesCount; i++) {
+                    let file = input.files[i];
                     let reader = new FileReader();
                     reader.onload = function (e) {
-                        carImagesArray.push(e.target.result);
-                        loadedCount++;
-                        if(loadedCount === filesCount) {
-                            document.getElementById('carImgsStatus').innerText = `✅ تم اختيار ${filesCount} صور`;
+                        let img = new Image();
+                        img.onload = function () {
+                            let canvas = document.createElement('canvas');
+                            let ctx = canvas.getContext('2d');
+                            let MAX_WIDTH = 800;
+                            let MAX_HEIGHT = 600;
+                            let width = img.width;
+                            let height = img.height;
+
+                            if (width > height) {
+                                if (width > MAX_WIDTH) {
+                                    height *= MAX_WIDTH / width;
+                                    width = MAX_WIDTH;
+                                }
+                            } else {
+                                if (height > MAX_HEIGHT) {
+                                    width *= MAX_HEIGHT / height;
+                                    height = MAX_HEIGHT;
+                                }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            let compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                            carImagesArray.push(compressedDataUrl);
+                            loadedCount++;
+
+                            if(loadedCount === filesCount) {
+                                document.getElementById('carImgsStatus').innerText = `✅ تم اختيار ومعالجة ${filesCount} صور بنجاح`;
+                            }
                         }
+                        img.src = e.target.result;
                     }
-                    reader.readAsDataURL(input.files[i]);
+                    reader.readAsDataURL(file);
                 }
             }
         }
@@ -192,10 +225,11 @@
 
                 let firstImg = (car.imgs && car.imgs.length > 0) ? car.imgs[0] : (car.img || "");
                 let imgTag = firstImg ? `<img src="${firstImg}" class="car-thumb">` : `🚗`;
+                let totalImgs = car.imgs ? car.imgs.length : (car.img ? 1 : 0);
 
                 list.innerHTML += `<div class="item-box">
                     <div style="display:flex; align-items:center;">${imgTag} <b>${car.name}</b> 
-                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(يومي: ${car.pDay || 500})</span>
+                        <span style="font-size:11px; color:#38bdf8; margin-right:10px;">(${totalImgs} صور | يومي: ${car.pDay || 500})</span>
                     </div> 
                     <div>
                         <button class="edit-btn" onclick="editCarPrices('${doc.id}', '${car.pDay || 500}', '${car.pHalf || 7000}', '${car.pMonth || 13000}')">تعديل الأسعار ⚙️</button>
@@ -207,7 +241,6 @@
             calculateFinancialReports();
         });
 
-        // فتح الصور بتبويب مستقل آمن لمنع الكراش
         function openImageInNewTab(url) {
             if(!url) return alert('لا توجد صورة مرفقة!');
             let win = window.open();
@@ -219,7 +252,6 @@
             list.innerHTML = '';
             snapshot.forEach(doc => {
                 let b = doc.data();
-                // فتح المستندات والرواتب بتبويب جديد لتجنب الكراش
                 let licenseBtn = b.licenseImg ? `<button onclick="openImageInNewTab('${b.licenseImg}')" class="doc-btn">📄 الرخصة</button>` : ``;
                 let idBtn = b.idImg ? `<button onclick="openImageInNewTab('${b.idImg}')" class="doc-btn" style="background:#0284c7;">🆔 البطاقة</button>` : ``;
                 let ticketBtn = b.ticketImg ? `<button onclick="openImageInNewTab('${b.ticketImg}')" class="doc-btn" style="background:#10b981;">✈️ التذكرة</button>` : ``;
@@ -471,30 +503,44 @@
             alert('تم تحديث أسعار السيارة بنجاح!');
         }
 
+        // دالة إضافة سيارة مع دعم أي عدد صور وبسلاسة تامة
         async function addCar() {
-            let name = document.getElementById('newCarName').value;
+            let name = document.getElementById('newCarName').value.trim();
             let km = document.getElementById('carKm').value || 0;
             let pDay = Number(document.getElementById('priceDay').value) || 500;
             let pHalf = Number(document.getElementById('priceHalfMonth').value) || (pDay * 14);
             let pMonth = Number(document.getElementById('priceMonth').value) || (pDay * 26);
 
-            if(!name) return alert('اكتب اسم العربية!');
+            if(!name) return alert('اكتب اسم ورقم السيارة!');
             
-            await db.collection("cars").add({ name: name, km: Number(km), pDay: pDay, pHalf: pHalf, pMonth: pMonth, imgs: carImagesArray, createdAt: new Date() });
+            try {
+                await db.collection("cars").add({ 
+                    name: name, 
+                    km: Number(km), 
+                    pDay: pDay, 
+                    pHalf: pHalf, 
+                    pMonth: pMonth, 
+                    imgs: carImagesArray, 
+                    createdAt: new Date() 
+                });
 
-            document.getElementById('newCarName').value = '';
-            document.getElementById('carKm').value = '';
-            document.getElementById('priceDay').value = '';
-            document.getElementById('priceHalfMonth').value = '';
-            document.getElementById('priceMonth').value = '';
-            document.getElementById('carImagesFiles').value = '';
-            carImagesArray = [];
-            document.getElementById('carImgsStatus').innerText = "لم يتم اختيار صور";
-            alert('تمت إضافة السيارة بنجاح!');
+                alert('✅ تمت إضافة السيارة وصورها بنجاح!');
+
+                document.getElementById('newCarName').value = '';
+                document.getElementById('carKm').value = '';
+                document.getElementById('priceDay').value = '';
+                document.getElementById('priceHalfMonth').value = '';
+                document.getElementById('priceMonth').value = '';
+                document.getElementById('carImagesFiles').value = '';
+                carImagesArray = [];
+                document.getElementById('carImgsStatus').innerText = "لم يتم اختيار صور";
+            } catch (error) {
+                alert('حدث خطأ أثناء حفظ السيارة: ' + error.message);
+            }
         }
 
         async function deleteCar(id) {
-            if(confirm('متأكد من الحذف؟')) await db.collection("cars").doc(id).delete();
+            if(confirm('متأكد من حذف هذه السيارة؟')) await db.collection("cars").doc(id).delete();
         }
     </script>
 </body>
